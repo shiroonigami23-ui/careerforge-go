@@ -48,6 +48,18 @@ go run ./cmd/careerforge   # on the PC
 - `internal/llm` — provider routing.
 - `frontend/` — React app; `android/` — Capacitor Android project.
 
+## Changelog
+
+Project history for code and non-ignored paths is tracked in **[CHANGELOG.md](CHANGELOG.md)**. On each push to `main` that changes real code, GitHub Actions appends commit summaries with timestamps (it skips pushes that only edit `CHANGELOG.md` or the README files).
+
+## License
+
+Distributed under the **[MIT License](LICENSE)**.
+
+## Contributors & credits
+
+GitHub’s **Contributors** tab lists commit **authors** (the `user.name` / `user.email` on each commit). An AI assistant or IDE does not get its own contributor entry unless you create commits attributed to a GitHub account for that purpose. To credit a session in git history you can use a [`Co-authored-by:` trailer](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/creating-a-commit-with-multiple-authors) on commits.
+
 ## Legacy
 
 The original Python/Flask backend is not included here; behavior is intended to match the prior `careerforge` project.

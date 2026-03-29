@@ -7,7 +7,8 @@
 [![Go 1.22](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-Android-119EFF?logo=capacitor&logoColor=white)](https://capacitorjs.com/)
-[![License](https://img.shields.io/badge/license-MIT%20%2F%20portfolio-blue.svg)](Readme.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Changelog](https://img.shields.io/badge/changelog-auto-6f42c1.svg)](CHANGELOG.md)
 [![Release](https://img.shields.io/github/v/release/shiroonigami23-ui/careerforge-go?sort=semver&logo=github&label=release)](https://github.com/shiroonigami23-ui/careerforge-go/releases)
 [![Android CI](https://img.shields.io/github/actions/workflow/status/shiroonigami23-ui/careerforge-go/android-apk.yml?branch=main&logo=github&label=android%20CI)](https://github.com/shiroonigami23-ui/careerforge-go/actions)
 [![Release workflow](https://img.shields.io/github/actions/workflow/status/shiroonigami23-ui/careerforge-go/release-apk.yml?logo=github&label=release%20build)](https://github.com/shiroonigami23-ui/careerforge-go/actions)
@@ -15,6 +16,13 @@
 <sub>**Tags:** `go` · `golang` · `android` · `capacitor` · `react` · `sqlite` · `career` · `resume` · `gemini` · `vite`</sub>
 
 </div>
+
+---
+
+## Changelog & license
+
+- **History:** [CHANGELOG.md](CHANGELOG.md) — auto-appended on `main` when code changes (not on README-only edits).
+- **License:** [MIT](LICENSE) — linked from the main [Readme.md](Readme.md) as well.
 
 ---
 

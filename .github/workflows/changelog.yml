@@ -1,0 +1,48 @@
+name: Changelog
+
+# Appends commit summaries to CHANGELOG.md with ISO timestamps.
+# Does not run when the push only changes CHANGELOG.md or README files (avoids loops).
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "CHANGELOG.md"
+      - "README.md"
+      - "Readme.md"
+      - "README4.md"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  append:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Append commits to CHANGELOG.md
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          CHANGELOG_FILE: CHANGELOG.md
+        run: bash scripts/append-changelog.sh
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --staged --quiet; then
+            echo "No changelog update"
+            exit 0
+          fi
+          git commit -m "chore(changelog): auto-update from push to main"
+          git push
