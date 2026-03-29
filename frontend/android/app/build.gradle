@@ -3,6 +3,11 @@ apply plugin: 'com.android.application'
 def releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
 def hasReleaseKeystore = releaseKeystorePath != null && !releaseKeystorePath.isEmpty() && file(releaseKeystorePath).exists()
 
+def vcProp = project.findProperty("versionCode")
+def resolvedVersionCode = vcProp == null ? 1 : Integer.parseInt(vcProp.toString().trim(), 10)
+def vnProp = project.findProperty("versionName")
+def resolvedVersionName = vnProp == null ? "1.0" : vnProp.toString()
+
 android {
     namespace = "com.careerforge.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -10,8 +15,8 @@ android {
         applicationId "com.careerforge.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (project.findProperty("versionCode") ?: "1").toString().toInteger()
-        versionName (project.findProperty("versionName") ?: "1.0").toString()
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
