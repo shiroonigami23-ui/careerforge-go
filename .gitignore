@@ -1,0 +1,29 @@
+# Go
+*.exe
+*.test
+*.out
+/careerforge
+/careerforge.exe
+
+# Data / runtime
+data/
+uploaded_files/
+*.db
+.env
+!.frontend/.env.android
+
+# Node
+frontend/node_modules/
+frontend/test-results/
+frontend/android/app/build/
+frontend/android/build/
+frontend/android/.gradle/
+frontend/android/capacitor-cordova-android-plugins/build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/

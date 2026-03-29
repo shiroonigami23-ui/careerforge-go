@@ -1,0 +1,56 @@
+{
+  "intents": [
+    {
+      "name": "greeting",
+      "keywords": ["hello", "hi", "hey", "good morning", "good evening"],
+      "responses": [
+        "Hey. Share your target role and I will map your resume gaps quickly.",
+        "Hi. Upload resume and JD, then ask for fit score, missing skills, or rewrite help.",
+        "Hello. I can help with role-fit analysis, ATS tuning, and action plans."
+      ]
+    },
+    {
+      "name": "qualification",
+      "keywords": ["qualified", "fit", "match", "eligible", "am i"],
+      "responses": [
+        "You are partially aligned. Focus on missing domain keywords, measurable outcomes, and clearer tech depth.",
+        "You have baseline fit. Biggest lift comes from tailoring experience bullets to this job's exact stack.",
+        "You are close, but not complete. Add role-specific evidence and quantified impact to improve confidence."
+      ]
+    },
+    {
+      "name": "missing_skills",
+      "keywords": ["missing skills", "gap", "lacking", "not enough", "weakness"],
+      "responses": [
+        "Prioritize the top 5 missing skills first: core stack terms, cloud tooling, testing depth, and system design.",
+        "Your gap pattern usually falls into tooling depth, measurable impact, and role-specific vocabulary.",
+        "Close the skills gap by adding projects that prove each required JD keyword with outcomes."
+      ]
+    },
+    {
+      "name": "roadmap",
+      "keywords": ["roadmap", "plan", "next 30 days", "next 14 days", "improve"],
+      "responses": [
+        "Week 1: keyword alignment and resume structure. Week 2: project evidence. Week 3: quantified bullets. Week 4: mock interviews.",
+        "Start with JD keyword mapping, then rewrite top 8 bullets with metrics, then add one relevant project case study.",
+        "Use a 4-step loop: identify gaps, build proof, rewrite resume, validate against JD."
+      ]
+    },
+    {
+      "name": "casual",
+      "keywords": ["thanks", "thank you", "cool", "nice", "awesome"],
+      "responses": [
+        "Anytime. If you want, I can next rewrite your summary for recruiter impact.",
+        "Great. Send the next question and I will keep answers concise and practical.",
+        "Done. We can now optimize ATS keywords or interview answer framing."
+      ]
+    }
+  ],
+  "generic": {
+    "responses": [
+      "Share your exact question and target role. I will return verdict, strengths, gaps, and action steps.",
+      "I can handle resume fit, gap analysis, rewrite help, and short execution plans.",
+      "Ask me for role-fit or improvement strategy and I will break it down clearly."
+    ]
+  }
+}

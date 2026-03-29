@@ -1,0 +1,9 @@
+{
+  "appId": "com.careerforge.app",
+  "appName": "CareerForge",
+  "webDir": "../cmd/careerforge/web/dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  }
+}
