@@ -1,4 +1,4 @@
-name: Release APK
+name: Release (signed APK + Windows EXE)
 
 on:
   push:
@@ -10,8 +10,14 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VERSION_NAME: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
 
       - uses: actions/setup-java@v4
         with:
@@ -24,26 +30,52 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend deps
+      - name: Install frontend deps (desktop embed)
         working-directory: frontend
         run: npm ci
 
-      - name: Build web (Android API URL)
+      - name: Build web for Go embed (same-origin API)
         working-directory: frontend
-        run: npm run build:android
+        run: npm run build
 
-      - name: Capacitor sync
+      - name: Build Windows amd64 executable
+        run: |
+          go build -trimpath -ldflags="-s -w" -o careerforge-windows-amd64.exe ./cmd/careerforge
+
+      - name: Build web for Android + Capacitor sync
         working-directory: frontend
-        run: npx cap sync android
+        run: npm run build:android && npx cap sync android
 
       - uses: android-actions/setup-android@v3
 
-      - name: Assemble Debug APK
-        working-directory: frontend/android
-        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - name: Decode release keystore (optional Play-style signing)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$GITHUB_WORKSPACE/frontend/android/app/release.keystore"
+            {
+              echo "ANDROID_KEYSTORE_FILE=$GITHUB_WORKSPACE/frontend/android/app/release.keystore"
+              echo "ANDROID_KEYSTORE_PASSWORD=$KS_PASS"
+              echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$KEY_PASS"
+            } >> "$GITHUB_ENV"
+          fi
 
-      - name: Upload release asset
+      - name: Assemble release APK (signed — release key or debug cert fallback)
+        working-directory: frontend/android
+        env:
+          ORG_GRADLE_PROJECT_versionCode: ${{ github.run_number }}
+          ORG_GRADLE_PROJECT_versionName: ${{ github.ref_name }}
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          files: |
+            careerforge-windows-amd64.exe
+            frontend/android/app/build/outputs/apk/release/app-release.apk
           generate_release_notes: true

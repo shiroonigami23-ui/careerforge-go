@@ -1,5 +1,7 @@
 # CareerForge (Go)
 
+**Showcase README (badges, release assets, signing): → [README4.md](README4.md)**
+
 Career intelligence stack rewritten with **Go** as the primary implementation: SQLite API, resume/JD processing, Gemini/Hugging Face routing, and a React UI (Vite) that is embedded in the desktop binary or packaged for **Android** via Capacitor.
 
 **Native extras in this repo**

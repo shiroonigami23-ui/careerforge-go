@@ -5,6 +5,11 @@
 /careerforge
 /careerforge.exe
 
+# Android signing (never commit real keys)
+frontend/android/app/release.keystore
+frontend/android/app/*.jks
+frontend/android/keystore.properties
+
 # Data / runtime
 data/
 uploaded_files/
