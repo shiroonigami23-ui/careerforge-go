@@ -345,6 +345,11 @@ const CareerForge = () => {
       }
       const data = await response.json();
       if (!mountedRef.current) return;
+      if (data?.error || !data?.profile) {
+        setProfile(createDefaultProfile(userId, authUser?.email || ''));
+        setProfileFiles([]);
+        return;
+      }
       setRuntimeMode('api');
       setProfile(data.profile);
       setProfileFiles(data.files || []);
@@ -365,6 +370,10 @@ const CareerForge = () => {
         return;
       }
       const data = await response.json();
+      if (data?.error) {
+        setDashboardData(null);
+        return;
+      }
       if (!mountedRef.current) return;
       setRuntimeMode('api');
       setDashboardData(data);
@@ -466,6 +475,7 @@ const CareerForge = () => {
       const response = await fetch(`${API_BASE_URL}/profile/${targetUserId}`);
       if (!response.ok) throw new Error('Profile not found for this user ID.');
       const data = await response.json();
+      if (data?.error || !data?.profile) throw new Error('Profile not found for this user ID.');
       setRuntimeMode('api');
       setVisitedProfile(data.profile);
       setVisitedFiles(data.files || []);
@@ -881,8 +891,8 @@ const CareerForge = () => {
   const renderProfile = () => (
     <section className="content-panel panel-animate">
       <div className="panel-head"><h2>Profile</h2></div>
-      <div className="profile-grid"><div className="profile-card"><p className="upload-note"><strong>Your User ID:</strong> {userId}</p>{profile.profile_image_url ? <img src={`${API_BASE_URL}${profile.profile_image_url}`} alt="Profile" className="avatar" /> : <div className="avatar placeholder">No Image</div>}<input type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.bmp" onChange={(event) => setProfileFile(event.target.files?.[0] || null)} /><small>Uploading a new profile image removes the previous one from server storage.</small></div>
-        <div className="profile-card"><label>Name</label><input value={profile.display_name || ''} onChange={(event) => setProfile((prev) => ({ ...prev, display_name: event.target.value }))} /><label>Email</label><input value={profile.email || ''} onChange={(event) => setProfile((prev) => ({ ...prev, email: event.target.value }))} /><label>Headline</label><input value={profile.headline || ''} onChange={(event) => setProfile((prev) => ({ ...prev, headline: event.target.value }))} /><label>Bio</label><textarea value={profile.bio || ''} onChange={(event) => setProfile((prev) => ({ ...prev, bio: event.target.value }))} /><button className="solid-btn" onClick={saveProfile} disabled={profileSaving}>{profileSaving ? 'Saving...' : 'Save Profile'}</button></div></div>
+      <div className="profile-grid"><div className="profile-card"><p className="upload-note"><strong>Your User ID:</strong> {userId}</p>{profile?.profile_image_url ? <img src={`${API_BASE_URL}${profile.profile_image_url}`} alt="Profile" className="avatar" /> : <div className="avatar placeholder">No Image</div>}<input type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.bmp" onChange={(event) => setProfileFile(event.target.files?.[0] || null)} /><small>Uploading a new profile image removes the previous one from server storage.</small></div>
+        <div className="profile-card"><label>Name</label><input value={profile?.display_name || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), display_name: event.target.value }))} /><label>Email</label><input value={profile?.email || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), email: event.target.value }))} /><label>Headline</label><input value={profile?.headline || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), headline: event.target.value }))} /><label>Bio</label><textarea value={profile?.bio || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), bio: event.target.value }))} /><button className="solid-btn" onClick={saveProfile} disabled={profileSaving}>{profileSaving ? 'Saving...' : 'Save Profile'}</button></div></div>
       <details open className="collapse-card"><summary>Uploaded File Links</summary><div className="files-list">{profileFiles.length === 0 ? <p>No file metadata available yet.</p> : profileFiles.map((file) => <a key={file.file_id} href={`${API_BASE_URL}${file.public_url}`} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name} ({(file.size_bytes / 1024 / 1024).toFixed(2)} MB)</a>)}</div></details>
       <details className="collapse-card"><summary>Visit Another User Profile</summary><div className="visit-grid"><input value={visitUserId} onChange={(event) => setVisitUserId(event.target.value)} placeholder="Enter target user_id" /><button className="solid-btn" onClick={visitProfile} disabled={isVisitingProfile}>{isVisitingProfile ? 'Loading...' : 'Visit Profile'}</button></div>{visitedProfile ? <div className="visited-profile"><p><strong>Name:</strong> {visitedProfile.display_name || 'User'}</p><p><strong>Headline:</strong> {visitedProfile.headline || 'N/A'}</p><p><strong>Bio:</strong> {visitedProfile.bio || 'N/A'}</p>{visitedProfile.profile_image_url ? <img src={`${API_BASE_URL}${visitedProfile.profile_image_url}`} alt="Visited profile" className="avatar" /> : null}<div className="files-list">{visitedFiles.length === 0 ? <p>No shared files found.</p> : visitedFiles.map((file) => <a key={file.file_id} href={`${API_BASE_URL}${file.public_url}`} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name}</a>)}</div></div> : null}</details>
       <details className="collapse-card"><summary>Email Notifications</summary><div className="visit-grid"><input value={emailTest.to} onChange={(event) => setEmailTest((prev) => ({ ...prev, to: event.target.value }))} placeholder="recipient@email.com" /><button className="solid-btn" onClick={sendEmailNotification}>Send Email</button></div><input value={emailTest.subject} onChange={(event) => setEmailTest((prev) => ({ ...prev, subject: event.target.value }))} placeholder="Email subject" /><textarea value={emailTest.message} onChange={(event) => setEmailTest((prev) => ({ ...prev, message: event.target.value }))} placeholder="Email body" />{emailStatus ? <p className="upload-note">{emailStatus}</p> : null}</details>

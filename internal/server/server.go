@@ -359,6 +359,7 @@ WHERE u.user_id = ?`, userID)
 	var uid, email, display, headline, bio, img sql.NullString
 	var sc, fc int
 	if err := row.Scan(&uid, &email, &display, &headline, &bio, &img, &sc, &fc); err != nil {
+		w.WriteHeader(http.StatusNotFound)
 		writeJSON(w, map[string]any{"error": "Profile not found"})
 		return
 	}
@@ -551,6 +552,7 @@ func (s *Server) handleProfileGet(w http.ResponseWriter, r *http.Request) {
 FROM users u LEFT JOIN user_profiles p ON p.user_id = u.user_id WHERE u.user_id = ?`, userID)
 	var uid, email, dn, hl, bio, img sql.NullString
 	if err := row.Scan(&uid, &email, &dn, &hl, &bio, &img); err != nil {
+		w.WriteHeader(http.StatusNotFound)
 		writeJSON(w, map[string]any{"error": "Profile not found"})
 		return
 	}
