@@ -2,8 +2,6 @@
 
 <img src="assets/app-tour.gif" alt="CareerForge" width="90%">
 
-<sub>Real recording of the React workspace (Dashboard → Resume Lab → Direct Chat → Profile)</sub>
-
 # 🧭 CareerForge
 
 ### Resume ↔ job-description intelligence — Go + SQLite API, React UI, Gemini/HF, Android & Windows builds
