@@ -32,3 +32,8 @@ For tagged releases with Android APK + Windows EXE, see [GitHub Releases](https:
 
 - \`98f30b6\` **ShiroOnigami23** (2026-03-30T22:26:25+05:30) — fix_profile_tab_blank_screen_and_not_found_handling
 
+
+### 2026-11-13 17:58:11 UTC (push `987bf46ccfee069e723119d0e7fae3b232ea5870`)
+
+- \`987bf46\` **Claude** (2026-11-13T23:28:01+05:30) — docs: overhaul README, add architecture & roadmap docs, banner, dev container
+
