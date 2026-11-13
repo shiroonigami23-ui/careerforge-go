@@ -71,6 +71,10 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+        with:
+
+          packages: platform-tools
+
       - name: Optional Play Store signing (repo secrets)
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

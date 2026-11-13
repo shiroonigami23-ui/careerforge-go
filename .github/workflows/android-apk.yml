@@ -37,6 +37,10 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+        with:
+
+          packages: platform-tools
+
       - name: Assemble Debug APK
         working-directory: frontend/android
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
