@@ -37,3 +37,8 @@ For tagged releases with Android APK + Windows EXE, see [GitHub Releases](https:
 
 - \`987bf46\` **Claude** (2026-11-13T23:28:01+05:30) — docs: overhaul README, add architecture & roadmap docs, banner, dev container
 
+
+### 2026-11-13 19:01:21 UTC (push `da6b863a555a8e9196f86db83186ac83de960a46`)
+
+- \`da6b863\` **Claude** (2026-11-14T00:31:12+05:30) — ci: fix failing workflows
+
