@@ -1,0 +1,16 @@
+{
+  "name": "CareerForge",
+  "image": "mcr.microsoft.com/devcontainers/go:1-1.22",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  },
+  "postCreateCommand": "cd frontend && npm install",
+  "forwardPorts": [
+    8080
+  ]
+}
