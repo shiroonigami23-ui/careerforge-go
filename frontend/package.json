@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:android": "vite build --mode android",
+    "build:ios": "vite build --mode ios",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:unit": "vitest run",
@@ -16,9 +17,10 @@
     "test:all": "npm run test:unit && npm run test:smoke && npm run test:e2e && npm run test:perf"
   },
   "dependencies": {
-    "@capacitor/android": "^8.3.0",
-    "@capacitor/cli": "^8.3.0",
-    "@capacitor/core": "^8.3.0",
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
     "@tailwindcss/vite": "^4.1.11",
     "idb-keyval": "^6.3.0",
     "jszip": "^3.10.2",

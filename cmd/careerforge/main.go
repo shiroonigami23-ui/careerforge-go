@@ -37,10 +37,12 @@ func main() {
 	}
 	defer srv.Close()
 
-	addr := ":8080"
+	port := "8080"
 	if p := os.Getenv("PORT"); p != "" {
-		addr = ":" + p
+		port = p
 	}
-	log.Printf("%s listening on http://127.0.0.1%s", "CareerForge", addr)
+	// HOST=127.0.0.1 keeps the server private to this machine (the desktop app sets it).
+	addr := os.Getenv("HOST") + ":" + port
+	log.Printf("CareerForge listening on http://127.0.0.1:%s", port)
 	log.Fatal(http.ListenAndServe(addr, srv.Handler()))
 }

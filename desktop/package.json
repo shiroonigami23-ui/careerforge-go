@@ -1,0 +1,36 @@
+{
+  "name": "careerforge-desktop",
+  "productName": "CareerForge",
+  "version": "1.0.0",
+  "description": "CareerForge desktop app: Electron shell around the Go server.",
+  "author": "Aryan Singh Chandel",
+  "license": "MIT",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.careerforge.desktop",
+    "productName": "CareerForge",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "splash.html", "emblem.png", "package.json"],
+    "extraResources": [{ "from": "bin", "to": "bin", "filter": ["**/*"] }],
+    "win": {
+      "icon": "build/icon.ico",
+      "artifactName": "CareerForge-${version}-${arch}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "CareerForge-Setup-${version}.${ext}"
+    },
+    "portable": { "artifactName": "CareerForge-Portable-${version}.${ext}" }
+  }
+}

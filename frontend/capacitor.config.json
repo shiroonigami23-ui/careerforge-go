@@ -5,5 +5,9 @@
   "server": {
     "androidScheme": "http",
     "cleartext": true
+  },
+  "backgroundColor": "#0e1636",
+  "ios": {
+    "contentInset": "never"
   }
 }

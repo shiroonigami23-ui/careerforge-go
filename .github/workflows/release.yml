@@ -1,0 +1,185 @@
+# On a v* tag: build the Android APK, an unsigned iOS IPA and the Windows EXEs,
+# then publish them all on one GitHub Release.
+# Run it by hand (workflow_dispatch) to test the builds; that only uploads workflow artifacts.
+
+name: Release (APK + IPA + EXE)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v0.0.{0}', github.run_number) }}
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Web build (on-device engine) + Capacitor sync
+        working-directory: frontend
+        run: npm ci && npm run build:android && npx cap sync android
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Optional release signing (repo secrets)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$GITHUB_WORKSPACE/frontend/android/app/release.keystore"
+            {
+              echo "ANDROID_KEYSTORE_FILE=$GITHUB_WORKSPACE/frontend/android/app/release.keystore"
+              echo "ANDROID_KEYSTORE_PASSWORD=$KS_PASS"
+              echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$KEY_PASS"
+            } >> "$GITHUB_ENV"
+          fi
+      - name: assembleRelease
+        working-directory: frontend/android
+        env:
+          ORG_GRADLE_PROJECT_versionCode: ${{ github.run_number }}
+          ORG_GRADLE_PROJECT_versionName: ${{ env.VERSION }}
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon --stacktrace
+      - name: Rename
+        run: |
+          mkdir -p out
+          cp frontend/android/app/build/outputs/apk/release/app-release.apk "out/CareerForge-${VERSION}.apk"
+          test -s "out/CareerForge-${VERSION}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/*.apk
+          if-no-files-found: error
+
+  ios:
+    name: iOS IPA (unsigned)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Web build (on-device engine) + Capacitor sync
+        working-directory: frontend
+        run: npm ci && npm run build:ios && npx cap sync ios
+      - name: xcodebuild (no code signing)
+        working-directory: frontend/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            MARKETING_VERSION="${VERSION#v}" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Package Payload/ into .ipa
+        run: |
+          APP=frontend/ios/App/build/Build/Products/Release-iphoneos/App.app
+          test -d "$APP"
+          mkdir -p ipa/Payload out
+          cp -R "$APP" ipa/Payload/CareerForge.app
+          (cd ipa && zip -qry "../out/CareerForge-${VERSION}-unsigned.ipa" Payload)
+          test -s "out/CareerForge-${VERSION}-unsigned.ipa"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: out/*.ipa
+          if-no-files-found: error
+
+  windows:
+    name: Windows EXEs (Electron + Go sidecar)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            desktop/package-lock.json
+      - name: Build UI and embed it in the Go server
+        working-directory: frontend
+        run: npm ci && npm run build
+      - name: Build Go server for Windows
+        run: |
+          mkdir -p desktop/bin out
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w -H=windowsgui" -o desktop/bin/careerforge-server.exe ./cmd/careerforge
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o "out/careerforge-server-windows-amd64.exe" ./cmd/careerforge
+      - name: Electron installer + portable
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          npm ci
+          npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+          npx electron-builder --win nsis portable --x64 --publish never
+          cp dist/CareerForge-Setup-*.exe dist/CareerForge-Portable-*.exe ../out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*.exe
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android, ios, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - run: ls -la assets
+      - name: Release notes
+        run: |
+          cat > notes.md <<NOTES
+          ## Downloads
+
+          | Platform | File | Notes |
+          |---|---|---|
+          | Android | \`CareerForge-${VERSION}.apk\` | Install directly (allow "install unknown apps"). Runs fully on-device. |
+          | Windows | \`CareerForge-Setup-${VERSION#v}.exe\` | Installer (Start-menu + desktop shortcut). |
+          | Windows | \`CareerForge-Portable-${VERSION#v}.exe\` | No install; just run it. |
+          | Windows | \`careerforge-server-windows-amd64.exe\` | Headless Go server only; open http://127.0.0.1:8080 |
+          | iOS | \`CareerForge-${VERSION}-unsigned.ipa\` | **Unsigned.** It will not install by tapping it. Sideload it with **AltStore** or **Sideloadly**, which re-sign it with your own Apple ID (free accounts must refresh every 7 days). |
+
+          Windows SmartScreen may warn because the EXEs are not code-signed: choose *More info → Run anyway*.
+
+          AI answers use your own Gemini API key (Profile → AI settings). Without a key the app still works with built-in answers.
+          NOTES
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          body_path: notes.md
+          generate_release_notes: true
