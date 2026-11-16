@@ -224,10 +224,11 @@ Messages travel directly between the two devices over an encrypted data channel.
 |---|---|---|
 | Passwords | PBKDF2-HMAC-SHA256, 210k iterations; same error for unknown email and wrong password | Go: RFC test vector, round trip, malformed hashes, legacy upgrade; JS: same |
 | Profile edits | Owner's session token required | Go: no token, forged token, another user's token, guest claim |
+| User IDs | Only letters, digits, `-` and `_` (max 64), so an ID can never become a file path | Go: six path-like IDs rejected, nothing written outside the data folder |
 | Files | `/files/` serves only `uploaded_files/`; `..` and encoded `..` rejected; the database is never served | Go: eight traversal and exposure attempts |
 | Google sign-in | Verified by Google, audience must match | — |
 | AI key | Header only, never in URLs or logs | Go: request has no query string |
-| Errors | Database errors are not echoed to clients | — |
+| Errors | Database and file-system errors are logged, never sent to clients | Go: taken-email case returns a plain message |
 | Desktop | Server bound to `127.0.0.1` on a random port; external links open in the system browser | — |
 | Uploads | Type and size checked on the client and on the server | Go and JS boundary tests |
 
@@ -237,7 +238,7 @@ Messages travel directly between the two devices over an encrypted data channel.
 
 | Suite | Count (v1.0) | Covers |
 |---|---|---|
-| Go | 28 test functions (with sub-cases) | Hashing, file limits, profile completeness, parser regressions, report numbers, stop-word parity, HTTP black-box (accounts, profile ownership, traversal, uploads, full upload → report → chat) |
+| Go | 33 test functions (with sub-cases) | Hashing, file limits, profile completeness, parser regressions, report numbers, stop-word parity, HTTP black-box with URL-encoded and multipart forms (accounts, profile ownership, user-ID validation, traversal, uploads, guest history, dashboard and profile file lists, full upload → report → chat) |
 | Engine (Vitest) | 30 | Numeric parity with Go, hashing, the on-device API as a black box, interface tests |
 | Browser (Playwright) | 11 | Splash, navigation, analysis, checklist, assistant, download, history, quick navigation, mobile layout, accounts, profile, settings, direct chat between two pages |
 

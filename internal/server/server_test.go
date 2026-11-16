@@ -419,3 +419,153 @@ func TestHTTPGuestClaimsProfileOnce(t *testing.T) {
 		t.Errorf("save with the claimed token: %d", code)
 	}
 }
+
+// Browsers send FormData as multipart/form-data. Every form handler must read it.
+func postMultipart(t *testing.T, ts *httptest.Server, path string, fields map[string]string) (int, map[string]any, string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		_ = w.WriteField(k, v)
+	}
+	_ = w.Close()
+	res, err := http.Post(ts.URL+path, w.FormDataContentType(), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	var m map[string]any
+	_ = json.Unmarshal(b, &m)
+	return res.StatusCode, m, string(b)
+}
+
+func TestHTTPMultipartFormsLikeBrowsers(t *testing.T) {
+	ts, _ := newTestServer(t)
+	if _, m, raw := postMultipart(t, ts, "/auth/signup", map[string]string{"email": "mp@x.io", "password": "hunter22", "display_name": "MP"}); m["user_id"] == nil {
+		t.Fatalf("multipart signup: %s", raw)
+	}
+	if _, m, raw := postMultipart(t, ts, "/auth/login", map[string]string{"email": "mp@x.io", "password": "hunter22"}); m["user_id"] == nil {
+		t.Errorf("multipart login: %s", raw)
+	}
+	if _, m, raw := postMultipart(t, ts, "/analysis/quality", map[string]string{"session_id": "none"}); m["error"] != "Quality report not ready for this session" {
+		t.Errorf("multipart quality should read session_id: %s", raw)
+	}
+	if code, _, raw := postMultipart(t, ts, "/query", map[string]string{"session_id": "none", "prompt": "hi"}); code != 404 {
+		t.Errorf("multipart query should read both fields (want 404 unknown session): %d %s", code, raw)
+	}
+}
+
+func TestHTTPProfileSaveKeepsEmailAndRejectsTakenEmail(t *testing.T) {
+	ts, _ := newTestServer(t)
+	_, a, _ := postForm(t, ts, "/auth/signup", url.Values{"email": {"a@x.io"}, "password": {"hunter22"}})
+	postForm(t, ts, "/auth/signup", url.Values{"email": {"b@x.io"}, "password": {"hunter22"}})
+	uid, tok := a["user_id"].(string), a["token"].(string)
+	if code, _ := upsertProfile(t, ts, uid, "A", tok); code != 200 { // no email field sent
+		t.Fatalf("save: %d", code)
+	}
+	if _, m, raw := postForm(t, ts, "/auth/login", url.Values{"email": {"a@x.io"}, "password": {"hunter22"}}); m["user_id"] == nil {
+		t.Errorf("saving a profile without an email must not remove the account email: %s", raw)
+	}
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	_ = w.WriteField("user_id", uid)
+	_ = w.WriteField("display_name", "A")
+	_ = w.WriteField("email", "b@x.io")
+	_ = w.Close()
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/profile/upsert", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+tok)
+	res, _ := http.DefaultClient.Do(req)
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != http.StatusConflict || strings.Contains(strings.ToLower(string(body)), "constraint") {
+		t.Errorf("taken email: %d %s", res.StatusCode, body)
+	}
+}
+
+func TestHTTPUserIDCannotEscapeTheUploadFolder(t *testing.T) {
+	ts, root := newTestServer(t)
+	for _, id := range []string{"../../escape", "..", "a/b", `a\b`, "x y", strings.Repeat("a", 65)} {
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		_ = w.WriteField("user_id", id)
+		_ = w.WriteField("display_name", "X")
+		fw, _ := w.CreateFormFile("profile_image", "me.png")
+		_, _ = fw.Write([]byte("\x89PNG\r\n\x1a\n"))
+		_ = w.Close()
+		res, err := http.Post(ts.URL+"/profile/upsert", w.FormDataContentType(), &buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusBadRequest {
+			t.Errorf("user_id %q: status %d, want 400", id, res.StatusCode)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "..", "escape")); err == nil {
+		t.Error("a directory was created outside the data folder")
+	}
+	if code, _ := get(t, ts, "/profile/..%2f..%2fetc"); code != 404 {
+		t.Errorf("profile lookup with a path in the ID: %d", code)
+	}
+}
+
+// Regression: the dashboard and profile file queries joined two tables with a created_at
+// column and failed with "ambiguous column name" once a user had uploads.
+func TestHTTPDashboardAndProfileListUploads(t *testing.T) {
+	ts, _ := newTestServer(t)
+	_, acct, _ := postForm(t, ts, "/auth/signup", url.Values{"email": {"files@x.io"}, "password": {"hunter22"}})
+	uid := acct["user_id"].(string)
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	_ = w.WriteField("session_id", "s-files")
+	_ = w.WriteField("user_id", uid)
+	for field, name := range map[string]string{"resume": "cv.txt", "jd": "jd.txt"} {
+		fw, _ := w.CreateFormFile(field, name)
+		_, _ = fw.Write([]byte("Python Docker Kubernetes"))
+	}
+	_ = w.Close()
+	res, err := http.Post(ts.URL+"/upload", w.FormDataContentType(), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	code, body := get(t, ts, "/dashboard/"+uid)
+	if code != 200 || !strings.Contains(body, `"recent_uploads"`) || !strings.Contains(body, "cv.txt") {
+		t.Errorf("dashboard: %d %s", code, body)
+	}
+	code, body = get(t, ts, "/profile/"+uid)
+	if code != 200 || !strings.Contains(body, "cv.txt") {
+		t.Errorf("profile: %d %s", code, body)
+	}
+}
+
+// Regression: a guest's upload failed the sessions → users foreign key silently, so guests
+// never saw their analyses or files on the dashboard.
+func TestHTTPGuestAnalysesAppearOnDashboard(t *testing.T) {
+	ts, _ := newTestServer(t)
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	_ = w.WriteField("session_id", "s-guest")
+	_ = w.WriteField("user_id", "guest-abc")
+	for field, name := range map[string]string{"resume": "cv.txt", "jd": "jd.txt"} {
+		fw, _ := w.CreateFormFile(field, name)
+		_, _ = fw.Write([]byte("Python Docker Kubernetes"))
+	}
+	_ = w.Close()
+	res, err := http.Post(ts.URL+"/upload", w.FormDataContentType(), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	code, body := get(t, ts, "/dashboard/guest-abc")
+	if code != 200 || !strings.Contains(body, `"session_id":"s-guest"`) || !strings.Contains(body, "cv.txt") {
+		t.Errorf("guest dashboard: %d %s", code, body)
+	}
+	// The guest can still claim the profile once (no token was issued at upload).
+	if code, m := upsertProfile(t, ts, "guest-abc", "Guest", ""); code != 200 || m["token"] == nil {
+		t.Errorf("guest claim after upload: %d %v", code, m)
+	}
+}

@@ -22,7 +22,11 @@ func main() {
 	if r := os.Getenv("CAREERFORGE_ROOT"); r != "" {
 		root = r
 	}
+	// Optional override of the built-in answers; the embedded copy is used when it is absent.
 	faqPath := filepath.Join(root, "internal", "faq", "faq_responses.json")
+	if _, err := os.Stat(faqPath); err != nil {
+		faqPath = ""
+	}
 	dist, err := fs.Sub(web, "web/dist")
 	if err != nil {
 		log.Fatal("embed: run `cd frontend && npm run build` first:", err)
