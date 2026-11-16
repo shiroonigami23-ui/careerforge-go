@@ -92,3 +92,9 @@ The first release for Android, iOS, Windows and the web from a single tag.
 - \`7656012\` **Claude** (2026-11-16T23:53:13+05:30) — Use GEMINI_MODEL (default gemini-flash-latest) and x-goog-api-key header; gofmt; device engine on Android
 - \`cff5d91\` **Claude** (2026-11-16T23:46:31+05:30) — WIP: on-device engine for APK/IPA, server security fixes
 
+
+### 2026-11-16 23:12:19 UTC (push `00eb9485c0aba436470bfbadacfd995b476343a8`)
+
+- \`26472cd\` **Claude** (2026-11-17T01:19:47+05:30) — Server mode fixes found by browser tests against the real server
+- \`f046785\` **Claude** (2026-11-17T01:06:42+05:30) — Profile edits require the owner's token; release adds macOS, Linux and server builds with checksums; browser tests for accounts/profile/settings/direct chat, also against the Go server; 10-page roadmap and technical guide
+
