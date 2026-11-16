@@ -28,14 +28,16 @@
 
 ## Download
 
-Every release ships for every platform from the same tag. Get them from the **[latest release](https://github.com/shiroonigami23-ui/careerforge-go/releases/latest)**:
+Every release ships for every platform from the same tag, with `SHA256SUMS.txt` to verify the files. Get them from the **[latest release](https://github.com/shiroonigami23-ui/careerforge-go/releases/latest)**:
 
 | Platform | File | Notes |
 |---|---|---|
 | Android | `CareerForge-vX.Y.Z.apk` | Runs fully on the phone. Allow "install unknown apps" for your browser or file manager. |
 | Windows | `CareerForge-Setup-X.Y.Z.exe` | Installer with Start-menu and desktop shortcuts. |
 | Windows | `CareerForge-Portable-X.Y.Z.exe` | No installation; just run it. |
-| Windows | `careerforge-server-windows-amd64.exe` | Server only: run it and open http://127.0.0.1:8080. |
+| macOS | `CareerForge-X.Y.Z-mac-arm64.dmg` / `-mac-x64.dmg` | Apple Silicon / Intel. Unsigned: right-click the app and choose **Open** the first time. |
+| Linux | `CareerForge-X.Y.Z-linux-x86_64.AppImage` or `careerforge_X.Y.Z_amd64.deb` | `chmod +x` the AppImage, or `sudo apt install ./careerforge_*.deb`. |
+| Server only | `careerforge-server-<os>-<arch>` archives, `careerforge-server-windows-amd64.exe` | Linux, macOS and Windows, x64 and ARM: run it and open http://127.0.0.1:8080. |
 | iOS | `CareerForge-vX.Y.Z-unsigned.ipa` | **Unsigned.** Install with a sideloading tool such as [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io), which signs it with your own Apple ID (free accounts re-sign every 7 days). |
 
 Windows may show a SmartScreen warning because the EXEs are not code-signed: choose **More info → Run anyway**.
@@ -153,7 +155,7 @@ node tests/run-all.mjs        # Go tests + engine tests + browser tests, recorde
 |---|---|
 | Go (`go test ./...`) | Password hashing (PBKDF2 test vector, legacy upgrade), file-size boundaries, profile completion numbers, résumé parsing regressions, quality-report numbers, stop-word parity with the JS engine, HTTP black-box tests: sign-up/sign-in, path traversal and database exposure on `/files/`, upload validation, the full upload → report → chat flow |
 | Engine (Vitest) | The same numeric fixtures as Go, password hashing, the on-device API as a black box, UI tests (landing, analyzer, file validation, sign-in dialog, theme) |
-| Browser (Playwright) | Splash shown ≥ 2 s, navigation, analysis end to end, checklist, assistant, Markdown download, history, Ctrl+K, mobile layout |
+| Browser (Playwright) | Splash shown ≥ 2 s, navigation, analysis end to end, checklist, assistant, Markdown download, history, Ctrl+K, mobile layout, accounts, profile (photo, reload, lookup), settings, direct chat between two devices; run against the on-device engine and against the Go server |
 
 The latest run is in [tests/results/LATEST.md](tests/results/LATEST.md). CI runs every suite on each push and attaches the record to the workflow run.
 
@@ -162,13 +164,14 @@ The latest run is in [tests/results/LATEST.md](tests/results/LATEST.md). CI runs
 - On Android and iOS, accounts, files and reports stay on the device (IndexedDB). Text leaves the device only when you add a Gemini key.
 - Passwords are stored as PBKDF2-HMAC-SHA256 with 210,000 iterations and a random salt; older hashes are upgraded at the next sign-in.
 - Google sign-in tokens are verified with Google and must match `GOOGLE_CLIENT_ID`.
+- Profiles can be viewed by anyone with the user ID but edited only with the owner's session token (tested).
 - `/files/` serves only uploaded files; the SQLite database and everything else under the data folder are never served (tested).
 - The Gemini key is sent in the `x-goog-api-key` header, never in URLs or logs.
 - The desktop app binds the server to `127.0.0.1` on a random free port.
 
 ## Roadmap
 
-Highlights: synonym-aware keyword matching, ATS formatting checks, résumé versions per role, interview practice. Full plan in **[docs/ROADMAP.md](docs/ROADMAP.md)** ([PDF](docs/ROADMAP.pdf)).
+Highlights: synonym-aware keyword matching, ATS formatting checks, résumé versions per role, interview practice. Full plan, plus how storage, analysis and the server/device switch work, in the **[Roadmap and Technical Guide](docs/ROADMAP.md)** ([10-page PDF](docs/ROADMAP.pdf)).
 
 ## Contributing
 

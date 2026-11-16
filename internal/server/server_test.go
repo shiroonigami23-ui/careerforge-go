@@ -354,3 +354,68 @@ func TestHTTPUploadQualityQueryFlow(t *testing.T) {
 		t.Errorf("query: %d %q", code, answer)
 	}
 }
+
+func upsertProfile(t *testing.T, ts *httptest.Server, userID, name, token string) (int, map[string]any) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	_ = w.WriteField("user_id", userID)
+	_ = w.WriteField("display_name", name)
+	_ = w.Close()
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/profile/upsert", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var m map[string]any
+	_ = json.NewDecoder(res.Body).Decode(&m)
+	return res.StatusCode, m
+}
+
+// Security: only the owner can edit a profile, even though user IDs are shared for lookups.
+func TestHTTPProfileEditRequiresOwnerToken(t *testing.T) {
+	ts, _ := newTestServer(t)
+	_, acct, _ := postForm(t, ts, "/auth/signup", url.Values{"email": {"owner@x.io"}, "password": {"hunter22"}, "display_name": {"Owner"}})
+	uid, _ := acct["user_id"].(string)
+	tok, _ := acct["token"].(string)
+	if uid == "" || len(tok) != 64 {
+		t.Fatalf("signup must return user_id and a token: %v", acct)
+	}
+	if code, _ := upsertProfile(t, ts, uid, "Hijacked", ""); code != http.StatusForbidden {
+		t.Errorf("edit without token: %d, want 403", code)
+	}
+	if code, _ := upsertProfile(t, ts, uid, "Hijacked", strings.Repeat("a", 64)); code != http.StatusForbidden {
+		t.Errorf("edit with a forged token: %d, want 403", code)
+	}
+	if code, m := upsertProfile(t, ts, uid, "Owner Renamed", tok); code != 200 || m["display_name"] != "Owner Renamed" {
+		t.Errorf("owner edit: %d %v", code, m)
+	}
+	_, other, _ := postForm(t, ts, "/auth/signup", url.Values{"email": {"other@x.io"}, "password": {"hunter22"}})
+	if code, _ := upsertProfile(t, ts, uid, "Hijacked", other["token"].(string)); code != http.StatusForbidden {
+		t.Errorf("another user's token: %d, want 403", code)
+	}
+	_, login, _ := postForm(t, ts, "/auth/login", url.Values{"email": {"owner@x.io"}, "password": {"hunter22"}})
+	if code, _ := upsertProfile(t, ts, uid, "Owner Again", login["token"].(string)); code != 200 {
+		t.Errorf("token from login should work: %d", code)
+	}
+}
+
+func TestHTTPGuestClaimsProfileOnce(t *testing.T) {
+	ts, _ := newTestServer(t)
+	code, first := upsertProfile(t, ts, "guest-123", "Guest", "")
+	tok, _ := first["token"].(string)
+	if code != 200 || tok == "" {
+		t.Fatalf("first save should create the profile and return a token: %d %v", code, first)
+	}
+	if code, _ := upsertProfile(t, ts, "guest-123", "Someone else", ""); code != http.StatusForbidden {
+		t.Errorf("second save without token: %d, want 403", code)
+	}
+	if code, _ := upsertProfile(t, ts, "guest-123", "Guest Renamed", tok); code != 200 {
+		t.Errorf("save with the claimed token: %d", code)
+	}
+}

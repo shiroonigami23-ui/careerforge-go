@@ -3,13 +3,18 @@
   "productName": "CareerForge",
   "version": "1.0.0",
   "description": "CareerForge desktop app: Electron shell around the Go server.",
-  "author": "Aryan Singh Chandel",
+  "author": {
+    "name": "Aryan Singh Chandel",
+    "email": "shiroonigami23-ui@users.noreply.github.com"
+  },
   "license": "MIT",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist:win": "electron-builder --win nsis portable --x64 --publish never"
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never",
+    "dist:linux": "electron-builder --linux AppImage deb --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg --publish never"
   },
   "devDependencies": {
     "electron": "^38.0.0",
@@ -18,9 +23,26 @@
   "build": {
     "appId": "com.careerforge.desktop",
     "productName": "CareerForge",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "splash.html", "emblem.png", "package.json"],
-    "extraResources": [{ "from": "bin", "to": "bin", "filter": ["**/*"] }],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "emblem.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "win": {
       "icon": "build/icon.ico",
       "artifactName": "CareerForge-${version}-${arch}-${target}.${ext}"
@@ -31,6 +53,31 @@
       "createDesktopShortcut": true,
       "artifactName": "CareerForge-Setup-${version}.${ext}"
     },
-    "portable": { "artifactName": "CareerForge-Portable-${version}.${ext}" }
-  }
+    "portable": {
+      "artifactName": "CareerForge-Portable-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icon-1024.png",
+      "category": "Office",
+      "synopsis": "R\u00e9sum\u00e9 and job-description fit analysis",
+      "artifactName": "CareerForge-${version}-linux-${arch}.${ext}"
+    },
+    "deb": {
+      "artifactName": "careerforge_${version}_${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon-1024.png",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "artifactName": "CareerForge-${version}-mac-${arch}.${ext}"
+    }
+  },
+  "homepage": "https://github.com/shiroonigami23-ui/careerforge-go"
 }

@@ -76,4 +76,5 @@ ico = on_bg((256, 256), 0.8, radius=48)
 save(ico, "desktop/build/icon.png")
 ico.save(os.path.join(ROOT, "desktop/build/icon.ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 save(TR.resize((320, 320), Image.LANCZOS), "desktop/emblem.png")
+save(on_bg((1024, 1024), 0.8, radius=200), "desktop/build/icon-1024.png")  # macOS / Linux
 print("icons written")
