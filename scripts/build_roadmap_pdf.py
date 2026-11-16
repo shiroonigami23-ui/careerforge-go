@@ -13,7 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC, OUT = ROOT / "docs" / "ROADMAP.md", ROOT / "docs" / "ROADMAP.pdf"
 TITLE, ACCENT, INK = "CareerForge", "#2d5bff", "#0e1636"
 
-body = markdown.markdown(SRC.read_text(encoding="utf-8"), extensions=["extra", "sane_lists"])
+body = markdown.markdown(SRC.read_text(encoding="utf-8"), extensions=["extra", "sane_lists", "fenced_code"])
 body = body.replace("<li>[x]", '<li class="done">').replace("<li>[ ]", '<li class="todo">')
 html = f"""<!doctype html><html><head><meta charset="utf-8"><title>{TITLE} roadmap</title><style>
 @page {{ size: A4; margin: 18mm 16mm 20mm; }}
@@ -28,6 +28,17 @@ li::before {{ content: '•'; position: absolute; left: 4pt; color: #8a93a8; }}
 li.done::before {{ content: '✓'; color: #1f9d6b; font-weight: 700; left: 2pt; }}
 li.todo::before {{ content: '○'; color: {ACCENT}; left: 2pt; }}
 h2, h3 {{ break-after: avoid; }} li {{ break-inside: avoid; }}
+h1 + p {{ font-size: 12.5pt; color: #4a5470; margin: 6pt 0 2pt; }}
+h1 + p + p {{ font-size: 9.5pt; color: #6b7389; margin-bottom: 14pt; }}
+h2 {{ border-top: 1px solid #dde3ee; padding-top: 10pt; }}
+table {{ width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 9pt; break-inside: auto; }}
+th {{ text-align: left; background: #eef2f8; color: {INK}; padding: 4pt 6pt; border-bottom: 1.5pt solid {ACCENT}; }}
+td {{ padding: 4pt 6pt; border-bottom: 0.5pt solid #dde3ee; vertical-align: top; }}
+tr {{ break-inside: avoid; }}
+pre {{ background: #f4f6fa; border: 0.5pt solid #dde3ee; border-left: 3pt solid {ACCENT}; padding: 8pt 10pt; font-size: 8.8pt; white-space: pre-wrap; break-inside: avoid; }}
+pre code {{ background: none; padding: 0; }}
+ol {{ padding-left: 18pt; }} ol > li {{ padding-left: 2pt; }} ol > li::before {{ content: none; }}
+ol {{ list-style: decimal; }}
 </style></head><body>{body}</body></html>"""
 
 with sync_playwright() as p:

@@ -14,7 +14,7 @@ The first release for Android, iOS, Windows and the web from a single tag.
 - **On-device engine** (`frontend/src/engine`): a JavaScript port of the Go pipeline (extraction, résumé processing, quality report, built-in answers, Gemini with the user's own key) with data in IndexedDB. Android and iOS run without any server.
 - **iOS app** (Capacitor) and an **unsigned IPA** in releases, for sideloading with AltStore or Sideloadly.
 - **Windows desktop app** (`desktop/`): Electron with an animated splash window; starts the Go server privately on 127.0.0.1. NSIS installer and portable EXE.
-- **Release workflow** (`release.yml`): APK, IPA and EXEs built and attached on `v*` tags; `release-test/*` branches run a dry run.
+- **Release workflow** (`release.yml`): APK, IPA, Windows installer and portable EXE, macOS `.dmg` (Apple Silicon and Intel), Linux `.AppImage` and `.deb`, server-only builds for Linux, macOS and Windows (x64 and ARM), and `SHA256SUMS.txt`, all attached on `v*` tags; `release-test/*` branches run a dry run.
 - **CI** (`ci.yml`): gofmt, go vet, go test (race detector), cross-builds, a server smoke test, and all test suites with recorded results.
 - **Redesigned interface** with Lucide icons, Bricolage Grotesque and IBM Plex Sans (bundled for offline use), light and dark themes, Ctrl/⌘+K quick navigation and a mobile bottom bar.
 - **Fit report**: score dial, metric bars, matched and missing keyword map (click a gap to ask the assistant), fix-first checklist saved per analysis, Markdown download and print/PDF layout.
@@ -24,9 +24,14 @@ The first release for Android, iOS, Windows and the web from a single tag.
 - Reports include `matched_keywords`; the dashboard includes `recent_sessions`.
 - `GEMINI_MODEL` setting (default `gemini-flash-latest`, replacing the retired `gemini-1.5-flash`); `HOST` setting for the listen address.
 - Tests: Go unit and HTTP black-box tests, shared numeric fixtures checked by both engines, Vitest UI and engine tests, Playwright browser tests; `node tests/run-all.mjs` records results in `tests/results/`.
-- `docs/ROADMAP.pdf`, generated from `docs/ROADMAP.md` by `scripts/build_roadmap_pdf.py`.
+- **Roadmap and Technical Guide** (`docs/ROADMAP.md`, 10-page `docs/ROADMAP.pdf` built by `scripts/build_roadmap_pdf.py`): how the app chooses server or device, where data is stored, the analysis pipeline, the score formula, the assistant, accounts, security, testing, releases, limitations, and milestones with acceptance criteria.
+- Browser tests for accounts, profile (save, photo, reload, lookup), settings and direct chat between two devices; CI runs the whole browser suite against the on-device engine **and** against the real Go server.
 
 ### Fixed
+- **Server mode could not sign in, show reports or answer questions:** sign-up, sign-in, the quality report, the assistant and the test email read forms with `r.ParseForm`, which ignores the `multipart/form-data` that browsers send, so every field arrived empty. All form handlers now read both encodings (regression test sends real multipart forms).
+- **Server dashboard and profiles failed once a user had uploads:** the file queries joined two tables with a `created_at` column ("ambiguous column name").
+- **Guests' analyses were never recorded on the server:** the session insert failed a foreign key (no user row) and the error was ignored; guests now get a user row on first upload, and such errors are logged.
+- **Saving a profile with an empty email removed the account's email** on the server, locking the user out of email sign-in; an empty email now keeps the existing one, and an email used by another account gets a clear 409.
 - Plain skills lists (no "Label:" prefix) were dropped by the résumé parser, so skills never counted toward keyword coverage (Go and JS).
 - Filler words such as *and*, *are*, *need*, *plus* were counted as job keywords; both engines now share one 151-word stop list, guarded by a test.
 - The UI showed invented scores (for example a fixed 73% average) when the server was unreachable; those fallbacks are removed.
@@ -39,10 +44,12 @@ The first release for Android, iOS, Windows and the web from a single tag.
 
 ### Security
 - Passwords are stored with PBKDF2-HMAC-SHA256 (210,000 iterations); older SHA-256 hashes still work and are upgraded at the next sign-in.
+- **Profile edits require the owner's session token.** Previously anyone who knew a user ID (which the app asks people to share for profile lookups) could overwrite that profile's name, email, headline, bio and photo on a server. Sign-in now returns a token (stored only as a SHA-256 hash, 30 days); a new guest ID claims its profile on first save.
 - `/files/` serves only `uploaded_files/`; the SQLite database used to be downloadable.
 - Google ID tokens are verified with Google's tokeninfo endpoint and the audience must match `GOOGLE_CLIENT_ID`.
 - The Gemini key is sent in the `x-goog-api-key` header instead of the URL.
-- Database errors are no longer echoed to clients.
+- Database and file-system errors are no longer echoed to clients (logged on the server instead).
+- **User IDs are validated** (letters, digits, `-`, `_`, at most 64 characters) before use. A crafted ID such as `../../x` could previously make the profile-photo upload write outside the data folder.
 
 ## Auto-generated entries
 

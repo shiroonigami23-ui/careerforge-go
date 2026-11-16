@@ -70,3 +70,33 @@ jobs:
         with:
           name: test-results
           path: tests/results/
+
+  e2e-server:
+    name: Browser tests against the Go server
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build UI into the server and start it
+        run: |
+          (cd frontend && npm ci && npx playwright install --with-deps chromium && npm run build)
+          go build -o /tmp/careerforge ./cmd/careerforge
+          mkdir -p /tmp/cfroot
+          HOST=127.0.0.1 PORT=8080 CAREERFORGE_ROOT=/tmp/cfroot /tmp/careerforge > /tmp/server.log 2>&1 &
+          for i in $(seq 1 40); do curl -fsS http://127.0.0.1:8080/ >/dev/null && break; sleep 0.25; done
+          curl -fsS http://127.0.0.1:8080/dashboard/__probe__ -o /dev/null -w '%{http_code}\n' || true
+      - name: Playwright (server mode)
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8080
+        run: npx playwright test
+      - name: Server log
+        if: failure()
+        run: cat /tmp/server.log

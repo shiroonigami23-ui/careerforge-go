@@ -19,9 +19,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/shiroonigami23-ui/careerforge-go/internal/db"
 	"github.com/shiroonigami23-ui/careerforge-go/internal/extract"
@@ -106,8 +108,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+	if !parseForm(w, r) {
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
@@ -132,25 +133,26 @@ func (s *Server) handleAuthSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 
 	userID := "u_" + randomHex(12)
 	passwordHash, err := hashPassword(password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	_, err = s.db.Exec(`
 INSERT INTO users (user_id, email, display_name, password_hash, auth_provider)
 VALUES (?, ?, ?, ?, 'email')`, userID, email, display, passwordHash)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	writeJSON(w, map[string]any{
 		"user_id":       userID,
+		"token":         s.issueToken(userID),
 		"email":         email,
 		"display_name":  display,
 		"auth_provider": "email",
@@ -158,8 +160,7 @@ VALUES (?, ?, ?, ?, 'email')`, userID, email, display, passwordHash)
 }
 
 func (s *Server) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+	if !parseForm(w, r) {
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
@@ -187,6 +188,7 @@ FROM users WHERE email = ?`, email).Scan(&userID, &display, &hash, &provider)
 	}
 	writeJSON(w, map[string]any{
 		"user_id":       userID.String,
+		"token":         s.issueToken(userID.String),
 		"email":         email,
 		"display_name":  display.String,
 		"auth_provider": provider.String,
@@ -194,8 +196,7 @@ FROM users WHERE email = ?`, email).Scan(&userID, &display, &hash, &provider)
 }
 
 func (s *Server) handleAuthGoogle(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+	if !parseForm(w, r) {
 		return
 	}
 	cred := strings.TrimSpace(r.FormValue("credential"))
@@ -221,6 +222,7 @@ func (s *Server) handleAuthGoogle(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, map[string]any{
 			"user_id":       userID.String,
+			"token":         s.issueToken(userID.String),
 			"email":         email,
 			"display_name":  firstNonEmpty(display.String, name),
 			"auth_provider": "google",
@@ -228,7 +230,7 @@ func (s *Server) handleAuthGoogle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 
@@ -240,6 +242,7 @@ UPDATE users SET google_sub = ?, auth_provider = 'google', display_name = COALES
 WHERE user_id = ?`, sub, name, userID.String)
 			writeJSON(w, map[string]any{
 				"user_id":       userID.String,
+				"token":         s.issueToken(userID.String),
 				"email":         email,
 				"display_name":  firstNonEmpty(display.String, name),
 				"auth_provider": "google",
@@ -253,11 +256,12 @@ WHERE user_id = ?`, sub, name, userID.String)
 INSERT INTO users (user_id, email, display_name, auth_provider, google_sub)
 VALUES (?, ?, ?, 'google', ?)`, userID.String, nullIfEmpty(email), name, sub)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	writeJSON(w, map[string]any{
 		"user_id":       userID.String,
+		"token":         s.issueToken(userID.String),
 		"email":         email,
 		"display_name":  name,
 		"auth_provider": "google",
@@ -300,7 +304,7 @@ func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -338,8 +342,7 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTestEmail(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+	if !parseForm(w, r) {
 		return
 	}
 	to := strings.TrimSpace(r.FormValue("to_email"))
@@ -357,6 +360,11 @@ func (s *Server) handleTestEmail(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	userID := strings.TrimPrefix(r.URL.Path, "/dashboard/")
 	userID = strings.TrimSuffix(userID, "/")
+	if !validUserID(userID) {
+		w.WriteHeader(http.StatusNotFound)
+		writeJSON(w, map[string]any{"error": "Profile not found"})
+		return
+	}
 	row := s.db.QueryRow(`
 SELECT u.user_id, u.email, u.display_name, p.headline, p.bio, p.profile_image_url,
        COALESCE(s.sessions_count, 0), COALESCE(f.files_count, 0)
@@ -378,11 +386,11 @@ WHERE u.user_id = ?`, userID)
 		_ = s.db.QueryRow(`SELECT COUNT(*) FROM uploaded_files WHERE owner_user_id = ?`, userID).Scan(&fc)
 	}
 	rows, err := s.db.Query(`
-SELECT file_id, file_role, original_name, public_url, extension, size_bytes, created_at
+SELECT uf.file_id, uf.file_role, uf.original_name, uf.public_url, uf.extension, uf.size_bytes, uf.created_at
 FROM uploaded_files uf
 INNER JOIN sessions s ON s.session_id = uf.session_id
 WHERE s.user_id = ?
-ORDER BY file_id DESC LIMIT 8`, userID)
+ORDER BY uf.file_id DESC LIMIT 8`, userID)
 	if err != nil {
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
@@ -455,8 +463,7 @@ func profileCompletion(displayName, email, headline, bio, img string) int {
 }
 
 func (s *Server) handleQuality(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+	if !parseForm(w, r) {
 		return
 	}
 	sid := strings.TrimSpace(r.FormValue("session_id"))
@@ -481,6 +488,25 @@ func (s *Server) handleProfileUpsert(w http.ResponseWriter, r *http.Request) {
 	if userID == "" {
 		writeJSON(w, map[string]any{"error": "user_id is required"})
 		return
+	}
+	if !validUserID(userID) {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]any{"error": "user_id may contain only letters, digits, '-' and '_'"})
+		return
+	}
+	// Only the owner may edit a profile. An existing account needs its session token;
+	// a brand-new guest ID is claimed by this request and receives a token to use from now on.
+	var exists int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM users WHERE user_id = ?`, userID).Scan(&exists)
+	claimToken := ""
+	if exists > 0 {
+		if !s.tokenOwns(bearerToken(r), userID) && !s.legacyGuestClaim(userID, &claimToken) {
+			w.WriteHeader(http.StatusForbidden)
+			writeJSON(w, map[string]any{"error": "Sign in again to edit this profile."})
+			return
+		}
+	} else {
+		claimToken = s.issueToken(userID)
 	}
 	email := strings.TrimSpace(r.FormValue("email"))
 	display := strings.TrimSpace(r.FormValue("display_name"))
@@ -512,7 +538,8 @@ func (s *Server) handleProfileUpsert(w http.ResponseWriter, r *http.Request) {
 		path := filepath.Join(dir, name)
 		out, err := os.Create(path)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("profile image:", err)
+			http.Error(w, "could not store the image", http.StatusInternalServerError)
 			return
 		}
 		_, _ = io.Copy(out, f)
@@ -533,10 +560,16 @@ func (s *Server) handleProfileUpsert(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := s.db.Exec(`
 INSERT INTO users (user_id, email, display_name) VALUES (?, ?, ?)
-ON CONFLICT(user_id) DO UPDATE SET email=excluded.email, display_name=excluded.display_name, updated_at=CURRENT_TIMESTAMP`,
+ON CONFLICT(user_id) DO UPDATE SET email=COALESCE(excluded.email, users.email), display_name=excluded.display_name, updated_at=CURRENT_TIMESTAMP`,
 		userID, emailArg, display)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if strings.Contains(strings.ToLower(err.Error()), "unique") {
+			w.WriteHeader(http.StatusConflict)
+			writeJSON(w, map[string]any{"error": "That email address belongs to another account."})
+			return
+		}
+		log.Println("profile upsert:", err)
+		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
 
@@ -554,7 +587,8 @@ ON CONFLICT(user_id) DO UPDATE SET
   updated_at=CURRENT_TIMESTAMP`,
 		userID, headline, bio, imgInsert)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println("profile upsert:", err)
+		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
 
@@ -564,15 +598,24 @@ ON CONFLICT(user_id) DO UPDATE SET
 	} else if prevURL.Valid {
 		outImg = prevURL.String
 	}
-	writeJSON(w, map[string]any{
+	out := map[string]any{
 		"user_id": userID, "email": email, "display_name": display,
 		"headline": headline, "bio": bio, "profile_image_url": outImg,
-	})
+	}
+	if claimToken != "" {
+		out["token"] = claimToken
+	}
+	writeJSON(w, out)
 }
 
 func (s *Server) handleProfileGet(w http.ResponseWriter, r *http.Request) {
 	userID := strings.TrimPrefix(r.URL.Path, "/profile/")
 	userID = strings.TrimSuffix(userID, "/")
+	if !validUserID(userID) {
+		w.WriteHeader(http.StatusNotFound)
+		writeJSON(w, map[string]any{"error": "Profile not found"})
+		return
+	}
 	row := s.db.QueryRow(`SELECT u.user_id, u.email, u.display_name, p.headline, p.bio, p.profile_image_url
 FROM users u LEFT JOIN user_profiles p ON p.user_id = u.user_id WHERE u.user_id = ?`, userID)
 	var uid, email, dn, hl, bio, img sql.NullString
@@ -582,11 +625,11 @@ FROM users u LEFT JOIN user_profiles p ON p.user_id = u.user_id WHERE u.user_id 
 		return
 	}
 	rows, err := s.db.Query(`
-SELECT file_id, file_role, original_name, public_url, extension, size_bytes, created_at
+SELECT uf.file_id, uf.file_role, uf.original_name, uf.public_url, uf.extension, uf.size_bytes, uf.created_at
 FROM uploaded_files uf INNER JOIN sessions s ON s.session_id = uf.session_id
-WHERE s.user_id = ? ORDER BY file_id DESC`, userID)
+WHERE s.user_id = ? ORDER BY uf.file_id DESC`, userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	defer rows.Close()
@@ -617,6 +660,11 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	sid := strings.TrimSpace(r.FormValue("session_id"))
 	uid := strings.TrimSpace(r.FormValue("user_id"))
+	if uid != "" && !validUserID(uid) {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]any{"error": "user_id may contain only letters, digits, '-' and '_'"})
+		return
+	}
 	if sid == "" {
 		writeJSON(w, map[string]any{"error": "Missing session_id or files"})
 		return
@@ -655,20 +703,33 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if uid != "" {
 		u = uid
 	}
-	_, _ = s.db.Exec(`INSERT OR IGNORE INTO sessions (session_id, user_id) VALUES (?, ?)`, sid, u)
+	if uid != "" {
+		// Guests analyse before they ever save a profile: give them a user row so their
+		// analyses and files are recorded (sessions.user_id references users).
+		if _, err := s.db.Exec(`INSERT OR IGNORE INTO users (user_id, display_name, auth_provider) VALUES (?, 'Guest', 'guest')`, uid); err != nil {
+			log.Println("upload guest user:", err)
+		}
+	}
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO sessions (session_id, user_id) VALUES (?, ?)`, sid, u); err != nil {
+		log.Println("upload session:", err)
+	}
 
 	rpath, err := saveUploaded(s.cfg.RootDir, hdrR, sid, "resume")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	jpath, err := saveUploaded(s.cfg.RootDir, hdrJ, sid, "jd")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
-	_ = s.registerUploaded(sid, uid, rpath, "resume", hdrR)
-	_ = s.registerUploaded(sid, uid, jpath, "jd", hdrJ)
+	if err := s.registerUploaded(sid, uid, rpath, "resume", hdrR); err != nil {
+		log.Println("register upload:", err)
+	}
+	if err := s.registerUploaded(sid, uid, jpath, "jd", hdrJ); err != nil {
+		log.Println("register upload:", err)
+	}
 
 	apiKey := os.Getenv("APP_API_KEY")
 	go s.processUpload(rpath, jpath, sid, apiKey)
@@ -709,8 +770,7 @@ func inferMode(prompt string) string {
 }
 
 func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+	if !parseForm(w, r) {
 		return
 	}
 	sid := strings.TrimSpace(r.FormValue("session_id"))
@@ -1028,4 +1088,84 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// ---- session tokens (profile edits) ----
+
+const tokenLifetime = 30 * 24 * time.Hour
+
+func tokenHash(t string) string {
+	sum := sha256.Sum256([]byte(t))
+	return hex.EncodeToString(sum[:])
+}
+
+// issueToken creates a random session token for userID; only its SHA-256 is stored.
+func (s *Server) issueToken(userID string) string {
+	t := randomHex(32)
+	_, err := s.db.Exec(`INSERT INTO auth_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)`,
+		tokenHash(t), userID, time.Now().UTC().Add(tokenLifetime).Format(time.RFC3339))
+	if err != nil {
+		log.Println("issue token:", err)
+		return ""
+	}
+	return t
+}
+
+func (s *Server) tokenOwns(token, userID string) bool {
+	if token == "" || len(token) > 200 {
+		return false
+	}
+	var owner, expires string
+	if err := s.db.QueryRow(`SELECT user_id, expires_at FROM auth_tokens WHERE token_hash = ?`, tokenHash(token)).Scan(&owner, &expires); err != nil {
+		return false
+	}
+	exp, err := time.Parse(time.RFC3339, expires)
+	if err != nil || time.Now().UTC().After(exp) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(owner), []byte(userID)) == 1
+}
+
+func bearerToken(r *http.Request) string {
+	h := r.Header.Get("Authorization")
+	if !strings.HasPrefix(h, "Bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(h, "Bearer "))
+}
+
+// legacyGuestClaim lets a guest profile created before tokens existed (no password, no Google
+// account, no token ever issued) claim a token once. After that the normal check applies.
+func (s *Server) legacyGuestClaim(userID string, claimToken *string) bool {
+	var hasPassword, hasGoogle, tokens int
+	_ = s.db.QueryRow(`SELECT COUNT(password_hash), COUNT(google_sub) FROM users WHERE user_id = ?`, userID).Scan(&hasPassword, &hasGoogle)
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM auth_tokens WHERE user_id = ?`, userID).Scan(&tokens)
+	if hasPassword > 0 || hasGoogle > 0 || tokens > 0 {
+		return false
+	}
+	*claimToken = s.issueToken(userID)
+	return *claimToken != ""
+}
+
+// parseForm reads URL-encoded and multipart bodies alike. Browsers send FormData as
+// multipart/form-data, which r.ParseForm alone does not read (and once r.Form is set,
+// r.FormValue no longer parses the multipart body either).
+func parseForm(w http.ResponseWriter, r *http.Request) bool {
+	if err := r.ParseMultipartForm(1 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+// validUserID accepts the IDs CareerForge creates (u_<hex>, UUIDs) and nothing that could
+// change a file path or a URL: letters, digits, '-' and '_' only, at most 64 characters.
+var userIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+func validUserID(id string) bool { return userIDPattern.MatchString(id) }
+
+// serverError logs the real error and gives the client a generic message (no SQL or paths).
+func serverError(w http.ResponseWriter, err error) {
+	log.Println("server error:", err)
+	http.Error(w, "internal server error", http.StatusInternalServerError)
 }

@@ -1,0 +1,526 @@
+{
+  "env": {
+    "when_utc": "2026-11-16T19:49:27.975Z",
+    "commit": "f046785",
+    "node": "v22.23.4",
+    "go": "go1.24.7",
+    "runner": "linux"
+  },
+  "results": [
+    {
+      "suite": "go",
+      "name": "internal/faq › TestContainsWordDoesNotMatchInsideWords",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/faq › TestFallbackQualification",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/llm › TestGeminiModelDefault",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/llm › TestGeminiRequestUsesHeaderNotQuery",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/process › TestPlainSkillsListIsKept",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/process › TestLabelledAndShortSkillLines",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/process › TestFindNameSkipsContactDetails",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestCoveragePercent",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestQualityReportNumbers/strong_resume,_full_keyword_overlap",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestQualityReportNumbers/weak_resume,_no_overlap",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestQualityReportNumbers/score_is_capped_at_100",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestQualityReportNumbers/half_the_JD_keywords,_three_sections",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestQualityReportNumbers/filler_words_in_the_job_description_are_ignored",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestQualityReportNumbers",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestQualityReportNeedsBothDocuments",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/quality › TestStopWordsMatchJSEngine",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestPasswordHashV2RoundTrip",
+      "status": "pass",
+      "ms": 160
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestPasswordLegacyV1StillVerifies",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestPasswordMalformedHashes",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestPBKDF2KnownVector",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestProfileCompletionNumbers",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestValidateFileHeaderBoundaries",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestInferMode",
+      "status": "pass",
+      "ms": 0
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPSignupLoginFlow",
+      "status": "pass",
+      "ms": 1820
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPSignupValidation",
+      "status": "pass",
+      "ms": 70
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPLegacyHashUpgradedOnLogin",
+      "status": "pass",
+      "ms": 120
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPDatabaseAndSourceNeverServed",
+      "status": "pass",
+      "ms": 30
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPDashboardProbeIsJSON404",
+      "status": "pass",
+      "ms": 20
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPQueryValidation",
+      "status": "pass",
+      "ms": 20
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPUploadRejectsBadTypes",
+      "status": "pass",
+      "ms": 20
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPUploadQualityQueryFlow",
+      "status": "pass",
+      "ms": 30
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPProfileEditRequiresOwnerToken",
+      "status": "pass",
+      "ms": 190
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPGuestClaimsProfileOnce",
+      "status": "pass",
+      "ms": 40
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPMultipartFormsLikeBrowsers",
+      "status": "pass",
+      "ms": 120
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPProfileSaveKeepsEmailAndRejectsTakenEmail",
+      "status": "pass",
+      "ms": 150
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPUserIDCannotEscapeTheUploadFolder",
+      "status": "pass",
+      "ms": 30
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPDashboardAndProfileListUploads",
+      "status": "pass",
+      "ms": 80
+    },
+    {
+      "suite": "go",
+      "name": "internal/server › TestHTTPGuestAnalysesAppearOnDashboard",
+      "status": "pass",
+      "ms": 40
+    },
+    {
+      "suite": "engine",
+      "name": "src/CareerForge.test.jsx › CareerForge UI renders the landing page with the sample report",
+      "status": "pass",
+      "ms": 127,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/CareerForge.test.jsx › CareerForge UI opens the analyzer and enables Analyze fit only with both documents",
+      "status": "pass",
+      "ms": 272,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/CareerForge.test.jsx › CareerForge UI rejects unsupported files with a clear message",
+      "status": "pass",
+      "ms": 85,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/CareerForge.test.jsx › CareerForge UI opens the sign-in dialog and switches to account creation",
+      "status": "pass",
+      "ms": 100,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/CareerForge.test.jsx › CareerForge UI switches between light and dark theme",
+      "status": "pass",
+      "ms": 48,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/smoke.test.jsx › Smoke test shows the landing screen without signing in",
+      "status": "pass",
+      "ms": 162,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(1, 3) = 33",
+      "status": "pass",
+      "ms": 1,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(2, 3) = 67",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(1, 2) = 50",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(3, 3) = 100",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(0, 4) = 0",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(5, 0) = 0",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(7, 5) = 100",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) coveragePercent(-1, 5) = 0",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) strong resume, full keyword overlap",
+      "status": "pass",
+      "ms": 2,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) weak resume, no overlap",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) score is capped at 100",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) half the JD keywords, three sections",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) filler words in the job description are ignored",
+      "status": "pass",
+      "ms": 1,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › numeric parity with the Go engine (tests/fixtures/quality_cases.json) returns null without both documents",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › password hashing (same format as the Go server) v2 PBKDF2 round trip",
+      "status": "pass",
+      "ms": 143,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › password hashing (same format as the Go server) matches the RFC PBKDF2-HMAC-SHA256 vector (Go uses the same)",
+      "status": "pass",
+      "ms": 1,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › password hashing (same format as the Go server) rejects malformed hashes",
+      "status": "pass",
+      "ms": 0,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › localApi black-box (what the UI calls in on-device mode) signup -> login, case-insensitive email, same error for wrong password and unknown user",
+      "status": "pass",
+      "ms": 114,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › localApi black-box (what the UI calls in on-device mode) signup password length boundary: 5 rejected, 6 accepted",
+      "status": "pass",
+      "ms": 49,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › localApi black-box (what the UI calls in on-device mode) dashboard probe returns a JSON 404 (used by engine detection)",
+      "status": "pass",
+      "ms": 1,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › localApi black-box (what the UI calls in on-device mode) upload validation: bad extension and missing JD are rejected",
+      "status": "pass",
+      "ms": 2,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › localApi black-box (what the UI calls in on-device mode) upload validation: 10 MB document limit",
+      "status": "pass",
+      "ms": 8,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › localApi black-box (what the UI calls in on-device mode) query validation: 400 without prompt, 404 for unknown session",
+      "status": "pass",
+      "ms": 1,
+      "msg": ""
+    },
+    {
+      "suite": "engine",
+      "name": "src/engine/engine.test.js › localApi black-box (what the UI calls in on-device mode) end-to-end: upload text resume + JD -> quality report -> chat answer (no API key)",
+      "status": "pass",
+      "ms": 8,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "boot splash shows the CareerForge name and emblem for at least 2 s, then goes away",
+      "status": "pass",
+      "ms": 3351,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "landing page shows the sample report and leads into the workspace",
+      "status": "pass",
+      "ms": 3548,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "analyze: fit score, keyword map, checklist, assistant",
+      "status": "pass",
+      "ms": 3937,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "report downloads as Markdown",
+      "status": "pass",
+      "ms": 3845,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "dashboard lists the analysis and reopens it",
+      "status": "pass",
+      "ms": 3955,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "quick navigation opens with Ctrl+K",
+      "status": "pass",
+      "ms": 3694,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "mobile layout uses the bottom navigation",
+      "status": "pass",
+      "ms": 3591,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "account: create, sign out, sign back in",
+      "status": "pass",
+      "ms": 4504,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "profile: save details and photo, they survive a reload, lookup by user ID works",
+      "status": "pass",
+      "ms": 7330,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "settings: AI key and model are saved on the device; theme persists",
+      "status": "pass",
+      "ms": 7028,
+      "msg": ""
+    },
+    {
+      "suite": "e2e",
+      "name": "direct chat: two devices connect and exchange messages",
+      "status": "pass",
+      "ms": 10738,
+      "msg": ""
+    }
+  ]
+}

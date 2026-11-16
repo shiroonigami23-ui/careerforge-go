@@ -247,6 +247,8 @@ export default function CareerForge() {
     const next = { user_id: payload.user_id, email: payload.email || '', display_name: payload.display_name || 'User', auth_provider: payload.auth_provider || 'email' };
     localStorage.setItem('careerforge_auth_user', JSON.stringify(next));
     localStorage.setItem('careerforge_user_id', next.user_id);
+    if (payload.token) localStorage.setItem('careerforge_token', payload.token);
+    else localStorage.removeItem('careerforge_token');
     setAuthUser(next);
     setUserId(next.user_id);
     setProfile(emptyProfile(next.user_id, next.email));
@@ -310,6 +312,7 @@ export default function CareerForge() {
 
   const signOut = () => {
     localStorage.removeItem('careerforge_auth_user');
+    localStorage.removeItem('careerforge_token');
     const fresh = uuidv4();
     localStorage.setItem('careerforge_user_id', fresh);
     setAuthUser(null);
@@ -454,9 +457,12 @@ export default function CareerForge() {
       fd.append('headline', profile.headline || '');
       fd.append('bio', profile.bio || '');
       if (profileFile) fd.append('profile_image', profileFile);
-      const res = await apiFetch('/profile/upsert', { method: 'POST', body: fd });
+      // The server only lets the owner edit a profile: send the session token it issued.
+      const token = localStorage.getItem('careerforge_token');
+      const res = await apiFetch('/profile/upsert', { method: 'POST', body: fd, headers: token ? { Authorization: `Bearer ${token}` } : {} });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Could not save the profile.');
+      if (data.token) localStorage.setItem('careerforge_token', data.token);
       setProfileFile(null);
       notify('Profile saved.');
       fetchProfile();
