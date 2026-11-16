@@ -1,47 +1,56 @@
-# 🗺 Roadmap — CareerForge
+# CareerForge roadmap
 
-> Back to the [README](../README.md).
+Last updated: 17 November 2026. The PDF copy (`docs/ROADMAP.pdf`) is generated from this file with `python3 scripts/build_roadmap_pdf.py`.
 
 ## Where the project stands
 
-Status: **active**.
+CareerForge compares a résumé with a job description, scores the fit, shows which of the job's keywords are covered or missing, and helps rewrite with an assistant. It runs as a Go server with an embedded web UI, as an Electron desktop app for Windows, and fully on-device on Android and iOS.
 
-## Milestones
+## Done
 
-### v1 — Go rewrite (done)
+### v1.0: platform and redesign (November 2026)
 
-- [x] Go API + SQLite, embedded React UI
-- [x] Resume/JD pipeline, quality report, keyword radar
-- [x] Gemini/HF routing with FAQ fallback
-- [x] APK + EXE release automation, auto-changelog
+- [x] On-device engine (JavaScript port of the Go pipeline) so the phone apps work with no server
+- [x] Android APK, unsigned iOS IPA (sideloading), Windows installer and portable EXE from one release workflow
+- [x] Electron desktop shell that runs the Go server privately on 127.0.0.1
+- [x] New interface with Lucide icons, light and dark themes, sign-in and account creation, Ctrl+K navigation
+- [x] Fit dial, metric bars, matched and missing keyword map, fix-first checklist
+- [x] Report download (Markdown) and print to PDF; analysis history with score change
+- [x] Passwords stored with PBKDF2-HMAC-SHA256 (legacy hashes upgraded at sign-in)
+- [x] Security: database never served over `/files/`, Google ID tokens verified with audience check, Gemini key sent in a header
+- [x] Gemini model set by `GEMINI_MODEL` (default `gemini-flash-latest`)
+- [x] Test suites: Go unit and HTTP black-box tests, numeric parity between the Go and JS engines, Playwright browser tests; results recorded in `tests/results/`
 
-### v1.1 — Smarter analysis
+### v0.x: Go rewrite
 
-*Goal:* Better, explainable recommendations.
+- [x] Go API with SQLite and an embedded React UI
+- [x] Résumé and job-description pipeline, quality report
+- [x] Gemini / Hugging Face routing with built-in answers as fallback
 
-- [ ] Section-level rewrite suggestions with before/after diff
-- [ ] ATS-style parsing check and formatting warnings
-- [ ] Semantic skill matching with embeddings in the vector store
+## Next
 
-### v1.2 — Platform
+### v1.1: smarter analysis
 
-- [ ] On-device server via gomobile by default (fully offline Android)
-- [ ] Job-board import (paste URL → JD)
-- [ ] Multi-resume versions per target role
+- [ ] Synonyms and skill families in keyword matching (for example "Postgres" and "PostgreSQL")
+- [ ] Section-level rewrite suggestions with a before/after view
+- [ ] ATS formatting checks: tables, columns, images and headers that parsers miss
+- [ ] Weighting keywords by where they appear in the job (requirements count more than "nice to have")
 
-### v2.0
+### v1.2: everyday use
 
-- [ ] Interview-prep mode generating role-specific questions
-- [ ] Cover-letter generator grounded in the matched evidence
+- [ ] Several résumé versions per person, each tied to target roles
+- [ ] Paste a job-posting link and import the description
+- [ ] Persist analyses on the server across restarts (today the server keeps reports in memory)
+- [ ] Signed Android release builds through repository secrets
 
-## 🔭 Long-term Vision
+### v2.0: preparation tools
 
-A private, offline-capable career copilot: your documents never leave your device unless you choose an online model.
+- [ ] Interview practice questions generated from the job and the résumé gaps
+- [ ] Cover-letter drafts grounded in matched evidence
+- [ ] Optional sync between devices, end-to-end encrypted
 
-## How to help
+## Principles
 
-Pick any unchecked item, open an issue to discuss the approach, then send a PR. Items in the earliest unfinished milestone are the highest priority.
-
-
----
-*Last updated: 2026-11-13*
+- The person's documents stay on their device unless they choose a server or an AI key.
+- Every number in a report can be explained in the Help page.
+- Each release ships for Android, iOS, Windows and the web from the same tag.
