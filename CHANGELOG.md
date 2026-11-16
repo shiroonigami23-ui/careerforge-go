@@ -6,13 +6,43 @@ For tagged releases with Android APK + Windows EXE, see [GitHub Releases](https:
 
 ---
 
-## [Unreleased] - 2026-11-13
+## [1.0.0] - 2026-11-17
 
-### Documentation
-- Rewrote README with badges, preview, feature & tech-stack tables, architecture diagram and roadmap
-- Added `docs/ARCHITECTURE.md` (components, data flow, design decisions)
-- Added `docs/ROADMAP.md` (milestones and long-term vision)
-- Added real project visuals (demo GIFs / screenshots), SSH / GitHub CLI / ZIP / Codespaces access options and a `.devcontainer`
+The first release for Android, iOS, Windows and the web from a single tag.
+
+### Added
+- **On-device engine** (`frontend/src/engine`): a JavaScript port of the Go pipeline (extraction, résumé processing, quality report, built-in answers, Gemini with the user's own key) with data in IndexedDB. Android and iOS run without any server.
+- **iOS app** (Capacitor) and an **unsigned IPA** in releases, for sideloading with AltStore or Sideloadly.
+- **Windows desktop app** (`desktop/`): Electron with an animated splash window; starts the Go server privately on 127.0.0.1. NSIS installer and portable EXE.
+- **Release workflow** (`release.yml`): APK, IPA and EXEs built and attached on `v*` tags; `release-test/*` branches run a dry run.
+- **CI** (`ci.yml`): gofmt, go vet, go test (race detector), cross-builds, a server smoke test, and all test suites with recorded results.
+- **Redesigned interface** with Lucide icons, Bricolage Grotesque and IBM Plex Sans (bundled for offline use), light and dark themes, Ctrl/⌘+K quick navigation and a mobile bottom bar.
+- **Fit report**: score dial, metric bars, matched and missing keyword map (click a gap to ask the assistant), fix-first checklist saved per analysis, Markdown download and print/PDF layout.
+- **Dashboard**: average fit, change since the previous analysis, recent analyses that reopen in one click, recent uploads.
+- **Sign-in dialog** for email/password and Google, and a Settings page (AI key and model, theme, test email, account).
+- Animated boot splash (at least 2 s) and new icons/splash screens from the CareerForge emblem (the old "Resume2Job" wordmark is gone).
+- Reports include `matched_keywords`; the dashboard includes `recent_sessions`.
+- `GEMINI_MODEL` setting (default `gemini-flash-latest`, replacing the retired `gemini-1.5-flash`); `HOST` setting for the listen address.
+- Tests: Go unit and HTTP black-box tests, shared numeric fixtures checked by both engines, Vitest UI and engine tests, Playwright browser tests; `node tests/run-all.mjs` records results in `tests/results/`.
+- `docs/ROADMAP.pdf`, generated from `docs/ROADMAP.md` by `scripts/build_roadmap_pdf.py`.
+
+### Fixed
+- Plain skills lists (no "Label:" prefix) were dropped by the résumé parser, so skills never counted toward keyword coverage (Go and JS).
+- Filler words such as *and*, *are*, *need*, *plus* were counted as job keywords; both engines now share one 151-word stop list, guarded by a test.
+- The UI showed invented scores (for example a fixed 73% average) when the server was unreachable; those fallbacks are removed.
+- The sign-in form was never displayed.
+- With the Go server, the report was requested once right after upload, before background processing finished; it is now polled until ready.
+- React StrictMode left an internal "mounted" flag false, so report, dashboard and profile updates were dropped in development builds.
+- Components defined inside the main component were remounted on every render and could swallow clicks (theme toggle).
+- Guests who had analysed résumés got a "Profile not found" dashboard.
+- FAQ keywords match whole words only.
+
+### Security
+- Passwords are stored with PBKDF2-HMAC-SHA256 (210,000 iterations); older SHA-256 hashes still work and are upgraded at the next sign-in.
+- `/files/` serves only `uploaded_files/`; the SQLite database used to be downloadable.
+- Google ID tokens are verified with Google's tokeninfo endpoint and the audience must match `GOOGLE_CLIENT_ID`.
+- The Gemini key is sent in the `x-goog-api-key` header instead of the URL.
+- Database errors are no longer echoed to clients.
 
 ## Auto-generated entries
 

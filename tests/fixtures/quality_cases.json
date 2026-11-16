@@ -1,0 +1,247 @@
+{
+  "_comment": "Hand-computed quality reports. Checked by internal/quality/report_test.go (Go) and frontend/src/engine/engine.test.js (JS) so both engines stay identical.",
+  "coverage_percent": [
+    [
+      1,
+      3,
+      33
+    ],
+    [
+      2,
+      3,
+      67
+    ],
+    [
+      1,
+      2,
+      50
+    ],
+    [
+      3,
+      3,
+      100
+    ],
+    [
+      0,
+      4,
+      0
+    ],
+    [
+      5,
+      0,
+      0
+    ],
+    [
+      7,
+      5,
+      100
+    ],
+    [
+      -1,
+      5,
+      0
+    ]
+  ],
+  "reports": [
+    {
+      "name": "strong resume, full keyword overlap",
+      "resume": [
+        [
+          "contact",
+          "Aryan Singh aryan@example.com +91 98765 43210 linkedin.com/in/aryan"
+        ],
+        [
+          "summary",
+          "Backend engineer"
+        ],
+        [
+          "skills",
+          "Python Docker Kubernetes"
+        ],
+        [
+          "experience",
+          "Led migration and built services; improved latency 40% across 3 services"
+        ],
+        [
+          "projects",
+          "Developed a scheduler"
+        ],
+        [
+          "education",
+          "B.Tech CSE 2027"
+        ]
+      ],
+      "jd": [
+        "Python Docker Kubernetes"
+      ],
+      "expect": {
+        "quality_score": 83,
+        "keyword_coverage": 100,
+        "section_score": 100,
+        "action_verb_count": 4,
+        "quantified_achievement_count": 6,
+        "contact_checks": {
+          "email": true,
+          "phone": true,
+          "linkedin": true
+        },
+        "missing_keywords": [],
+        "recommendation_count": 2,
+        "matched_keywords": [
+          "docker",
+          "kubernetes",
+          "python"
+        ]
+      }
+    },
+    {
+      "name": "weak resume, no overlap",
+      "resume": [
+        [
+          "unknown",
+          "Hello world"
+        ]
+      ],
+      "jd": [
+        "Python Docker"
+      ],
+      "expect": {
+        "quality_score": 4,
+        "keyword_coverage": 0,
+        "section_score": 16,
+        "action_verb_count": 0,
+        "quantified_achievement_count": 0,
+        "contact_checks": {
+          "email": false,
+          "phone": false,
+          "linkedin": false
+        },
+        "missing_keywords": [
+          "docker",
+          "python"
+        ],
+        "recommendation_count": 6,
+        "matched_keywords": []
+      }
+    },
+    {
+      "name": "score is capped at 100",
+      "resume": [
+        [
+          "contact",
+          "a@b.co +1 555 123 4567 linkedin"
+        ],
+        [
+          "summary",
+          "x"
+        ],
+        [
+          "skills",
+          "Go Rust"
+        ],
+        [
+          "experience",
+          "led led led led led led led led led led led led led led led led led led led led led led led led led led led led led led 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25"
+        ],
+        [
+          "projects",
+          "p"
+        ],
+        [
+          "education",
+          "e"
+        ]
+      ],
+      "jd": [
+        "Go Rust"
+      ],
+      "expect": {
+        "quality_score": 100,
+        "keyword_coverage": 100,
+        "section_score": 100,
+        "action_verb_count": 30,
+        "quantified_achievement_count": 29,
+        "contact_checks": {
+          "email": true,
+          "phone": true,
+          "linkedin": true
+        },
+        "missing_keywords": [],
+        "recommendation_count": 0,
+        "matched_keywords": [
+          "rust"
+        ]
+      }
+    },
+    {
+      "name": "half the JD keywords, three sections",
+      "resume": [
+        [
+          "skills",
+          "React Node"
+        ],
+        [
+          "experience",
+          "Built dashboards"
+        ],
+        [
+          "education",
+          "BSc"
+        ]
+      ],
+      "jd": [
+        "React Node Postgres Redis"
+      ],
+      "expect": {
+        "quality_score": 36,
+        "keyword_coverage": 50,
+        "section_score": 50,
+        "action_verb_count": 1,
+        "quantified_achievement_count": 0,
+        "contact_checks": {
+          "email": false,
+          "phone": false,
+          "linkedin": false
+        },
+        "missing_keywords": [
+          "postgres",
+          "redis"
+        ],
+        "recommendation_count": 6,
+        "matched_keywords": [
+          "node",
+          "react"
+        ]
+      }
+    },
+    {
+      "name": "filler words in the job description are ignored",
+      "resume": [
+        [
+          "skills",
+          "Python and Go"
+        ]
+      ],
+      "jd": [
+        "We need Python and you will work with our team"
+      ],
+      "expect": {
+        "quality_score": 49,
+        "keyword_coverage": 100,
+        "section_score": 16,
+        "action_verb_count": 0,
+        "quantified_achievement_count": 0,
+        "contact_checks": {
+          "email": false,
+          "phone": false,
+          "linkedin": false
+        },
+        "matched_keywords": [
+          "python"
+        ],
+        "missing_keywords": [],
+        "recommendation_count": 5
+      }
+    }
+  ]
+}

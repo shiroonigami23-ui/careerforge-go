@@ -1,7 +1,6 @@
 package matching
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/shiroonigami23-ui/careerforge-go/internal/extract"
+	"github.com/shiroonigami23-ui/careerforge-go/internal/llm"
 	"github.com/shiroonigami23-ui/careerforge-go/internal/store"
 )
 
@@ -43,13 +43,10 @@ func chunkJD(text, apiKey string, c *http.Client) ([]store.ChunkMeta, error) {
 		"generationConfig": map[string]any{"temperature": 0.2},
 	}
 	raw, _ := json.Marshal(body)
-	req, err := http.NewRequest(http.MethodPost,
-		"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+apiKey,
-		bytes.NewReader(raw))
+	req, err := llm.NewGeminiRequest(raw, apiKey)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
 	if c == nil {
 		c = http.DefaultClient
 	}

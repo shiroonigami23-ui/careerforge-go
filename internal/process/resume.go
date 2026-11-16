@@ -141,12 +141,12 @@ func toTitleWords(s string) string {
 }
 
 var sectionMap = map[string][]string{
-	"contact":      {"contact", "personal information"},
-	"skills":       {"skills", "technologies", "tools"},
-	"experience":   {"experience", "work experience", "professional experience"},
-	"projects":     {"projects", "case studies"},
-	"leadership":   {"leadership", "leadership experience", "positions", "roles", "extracurriculars"},
-	"education":    {"education", "academics", "qualifications"},
+	"contact":        {"contact", "personal information"},
+	"skills":         {"skills", "technologies", "tools"},
+	"experience":     {"experience", "work experience", "professional experience"},
+	"projects":       {"projects", "case studies"},
+	"leadership":     {"leadership", "leadership experience", "positions", "roles", "extracurriculars"},
+	"education":      {"education", "academics", "qualifications"},
 	"certifications": {"certifications", "courses", "licenses"},
 }
 
@@ -220,9 +220,14 @@ func createChunks(sample map[string]string, sessionID string, vs *store.VectorSt
 				chunks = append(chunks, store.ChunkMeta{ChunkText: text, Section: mapped, ResumeOwner: resumeOwner})
 			}
 		case "skills":
-			for _, m := range skillsPat.FindAllString(text, -1) {
-				chunkText := strings.TrimSpace(m)
-				if len(chunkText) > 20 {
+			// "Languages: Go, Python" lines become one chunk each; a plain list
+			// ("Python Docker Kubernetes") is kept whole. Short skill lines still count.
+			matches := skillsPat.FindAllString(text, -1)
+			if len(matches) == 0 {
+				matches = []string{text}
+			}
+			for _, m := range matches {
+				if chunkText := strings.TrimSpace(m); chunkText != "" {
 					chunks = append(chunks, store.ChunkMeta{ChunkText: chunkText, Section: mapped, ResumeOwner: resumeOwner})
 				}
 			}

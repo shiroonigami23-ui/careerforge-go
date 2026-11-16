@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/shiroonigami23-ui/careerforge-go/internal/native/seed"
@@ -58,11 +59,21 @@ func hashString(s string) uint64 {
 	return h
 }
 
+// containsWord reports whether phrase occurs in text as whole words,
+// so the keyword "hi" does not match inside "this".
+func containsWord(text, phrase string) bool {
+	re, err := regexp.Compile(`(^|[^a-z0-9])` + regexp.QuoteMeta(strings.ToLower(phrase)) + `($|[^a-z0-9])`)
+	if err != nil {
+		return strings.Contains(text, phrase)
+	}
+	return re.MatchString(text)
+}
+
 func Fallback(prompt string) string {
 	lower := strings.ToLower(prompt)
 	for _, intent := range data.Intents {
 		for _, key := range intent.Keywords {
-			if strings.Contains(lower, key) {
+			if containsWord(lower, key) {
 				return stablePick(intent.Responses, lower)
 			}
 		}

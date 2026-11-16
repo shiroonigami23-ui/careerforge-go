@@ -1,11 +1,12 @@
 package server
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
-	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -18,8 +19,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
 	"sync"
 
 	"github.com/shiroonigami23-ui/careerforge-go/internal/db"
@@ -179,6 +180,11 @@ FROM users WHERE email = ?`, email).Scan(&userID, &display, &hash, &provider)
 		writeJSON(w, map[string]any{"error": "invalid email or password"})
 		return
 	}
+	if needsRehash(hash.String) {
+		if upgraded, err := hashPassword(password); err == nil {
+			_, _ = s.db.Exec(`UPDATE users SET password_hash = ? WHERE user_id = ?`, upgraded, userID.String)
+		}
+	}
 	writeJSON(w, map[string]any{
 		"user_id":       userID.String,
 		"email":         email,
@@ -197,7 +203,7 @@ func (s *Server) handleAuthGoogle(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"error": "credential is required"})
 		return
 	}
-	sub, email, name, err := parseGoogleCredential(cred)
+	sub, email, name, err := s.verifyGoogleCredential(cred)
 	if err != nil {
 		writeJSON(w, map[string]any{"error": "invalid google credential"})
 		return
@@ -309,19 +315,22 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
+	// Only uploaded files are public. Everything else under RootDir (including the
+	// SQLite database in data/) must never be served.
 	rel := strings.TrimPrefix(r.URL.Path, "/files/")
-	rel = filepath.ToSlash(filepath.Clean(rel))
-	if strings.Contains(rel, "..") {
+	rel = filepath.ToSlash(filepath.Clean("/" + rel))[1:]
+	if rel == "" || strings.Contains(rel, "..") || !strings.HasPrefix(rel, "uploaded_files/") {
 		http.NotFound(w, r)
 		return
 	}
-	full := filepath.Join(s.cfg.RootDir, rel)
-	base := filepath.Clean(s.cfg.RootDir)
-	if !strings.HasPrefix(filepath.Clean(full), base) {
+	uploads := filepath.Clean(filepath.Join(s.cfg.RootDir, "uploaded_files"))
+	full := filepath.Clean(filepath.Join(s.cfg.RootDir, filepath.FromSlash(rel)))
+	if !strings.HasPrefix(full, uploads+string(os.PathSeparator)) {
 		http.NotFound(w, r)
 		return
 	}
-	if _, err := os.Stat(full); err != nil {
+	info, err := os.Stat(full)
+	if err != nil || info.IsDir() {
 		http.NotFound(w, r)
 		return
 	}
@@ -359,9 +368,14 @@ WHERE u.user_id = ?`, userID)
 	var uid, email, display, headline, bio, img sql.NullString
 	var sc, fc int
 	if err := row.Scan(&uid, &email, &display, &headline, &bio, &img, &sc, &fc); err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		writeJSON(w, map[string]any{"error": "Profile not found"})
-		return
+		// Guests (no account) still get a dashboard once they have analysed something.
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE user_id = ?`, userID).Scan(&sc)
+		if sc == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			writeJSON(w, map[string]any{"error": "Profile not found"})
+			return
+		}
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM uploaded_files WHERE owner_user_id = ?`, userID).Scan(&fc)
 	}
 	rows, err := s.db.Query(`
 SELECT file_id, file_role, original_name, public_url, extension, size_bytes, created_at
@@ -370,7 +384,7 @@ INNER JOIN sessions s ON s.session_id = uf.session_id
 WHERE s.user_id = ?
 ORDER BY file_id DESC LIMIT 8`, userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -385,21 +399,31 @@ ORDER BY file_id DESC LIMIT 8`, userID)
 			"extension": ext, "size_bytes": sz, "created_at": created,
 		})
 	}
-	srows, _ := s.db.Query(`SELECT session_id FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 15`, userID)
-	var sids []string
+	srows, err := s.db.Query(`SELECT session_id, created_at FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 15`, userID)
+	if err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	type sessionRow struct{ id, created string }
+	var sids []sessionRow
 	for srows.Next() {
-		var sid string
-		_ = srows.Scan(&sid)
-		sids = append(sids, sid)
+		var sr sessionRow
+		_ = srows.Scan(&sr.id, &sr.created)
+		sids = append(sids, sr)
 	}
 	_ = srows.Close()
 	analyzed := 0
 	var qvals []int
-	for _, sid := range sids {
-		if rep := quality.Build(sid, s.vs); rep != nil {
+	recent := []map[string]any{}
+	for _, sr := range sids {
+		entry := map[string]any{"session_id": sr.id, "created_at": sr.created, "quality_score": nil, "keyword_coverage": nil}
+		if rep := quality.Build(sr.id, s.vs); rep != nil {
 			analyzed++
 			qvals = append(qvals, rep.QualityScore)
+			entry["quality_score"] = rep.QualityScore
+			entry["keyword_coverage"] = rep.KeywordCoverage
 		}
+		recent = append(recent, entry)
 	}
 	avgQ := 0
 	if len(qvals) > 0 {
@@ -413,6 +437,7 @@ ORDER BY file_id DESC LIMIT 8`, userID)
 	writeJSON(w, map[string]any{
 		"app_name": appName, "profile_completion": pc, "sessions_count": sc, "files_count": fc,
 		"analyzed_sessions": analyzed, "average_quality_score": avgQ, "recent_uploads": uploads,
+		"recent_sessions": recent,
 	})
 }
 
@@ -650,8 +675,8 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]any{
 		"message":    "Upload received. Processing started.",
-		"resume_url":   s.publicURL(rpath),
-		"jd_url":       s.publicURL(jpath),
+		"resume_url": s.publicURL(rpath),
+		"jd_url":     s.publicURL(jpath),
 	})
 }
 
@@ -874,58 +899,116 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
+// Passwords are stored as "v2$<iterations>$<salt hex>$<PBKDF2-HMAC-SHA256 hex>".
+// "v1$salt$sha256" hashes from older versions still verify and are upgraded on the next login.
+const pbkdf2Iterations = 210000
+
 func hashPassword(password string) (string, error) {
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(append(salt, []byte(password)...))
-	return "v1$" + hex.EncodeToString(salt) + "$" + hex.EncodeToString(sum[:]), nil
+	dk := pbkdf2SHA256([]byte(password), salt, pbkdf2Iterations, 32)
+	return fmt.Sprintf("v2$%d$%s$%s", pbkdf2Iterations, hex.EncodeToString(salt), hex.EncodeToString(dk)), nil
 }
 
 func verifyPassword(stored, password string) bool {
 	parts := strings.Split(stored, "$")
-	if len(parts) != 3 || parts[0] != "v1" {
-		return false
+	switch {
+	case len(parts) == 4 && parts[0] == "v2":
+		iter, err := strconv.Atoi(parts[1])
+		if err != nil || iter < 1 || iter > 10_000_000 {
+			return false
+		}
+		salt, err1 := hex.DecodeString(parts[2])
+		want, err2 := hex.DecodeString(parts[3])
+		if err1 != nil || err2 != nil || len(want) == 0 {
+			return false
+		}
+		return subtle.ConstantTimeCompare(want, pbkdf2SHA256([]byte(password), salt, iter, len(want))) == 1
+	case len(parts) == 3 && parts[0] == "v1":
+		salt, err1 := hex.DecodeString(parts[1])
+		want, err2 := hex.DecodeString(parts[2])
+		if err1 != nil || err2 != nil {
+			return false
+		}
+		got := sha256.Sum256(append(salt, []byte(password)...))
+		return subtle.ConstantTimeCompare(want, got[:]) == 1
 	}
-	salt, err := hex.DecodeString(parts[1])
-	if err != nil {
-		return false
-	}
-	want, err := hex.DecodeString(parts[2])
-	if err != nil {
-		return false
-	}
-	got := sha256.Sum256(append(salt, []byte(password)...))
-	if len(want) != len(got) {
-		return false
-	}
-	return subtle.ConstantTimeCompare(want, got[:]) == 1
+	return false
 }
 
-func parseGoogleCredential(credential string) (sub, email, name string, err error) {
-	parts := strings.Split(credential, ".")
-	if len(parts) < 2 {
+// needsRehash reports whether a stored hash should be upgraded to the current scheme.
+func needsRehash(stored string) bool {
+	return !strings.HasPrefix(stored, fmt.Sprintf("v2$%d$", pbkdf2Iterations))
+}
+
+// pbkdf2SHA256 implements PBKDF2 (RFC 8018) with HMAC-SHA256 using only the standard library.
+func pbkdf2SHA256(password, salt []byte, iter, keyLen int) []byte {
+	prf := hmac.New(sha256.New, password)
+	hLen := prf.Size()
+	blocks := (keyLen + hLen - 1) / hLen
+	out := make([]byte, 0, blocks*hLen)
+	buf := make([]byte, 4)
+	u := make([]byte, hLen)
+	t := make([]byte, hLen)
+	for block := 1; block <= blocks; block++ {
+		prf.Reset()
+		prf.Write(salt)
+		binary.BigEndian.PutUint32(buf, uint32(block))
+		prf.Write(buf)
+		u = prf.Sum(u[:0])
+		copy(t, u)
+		for n := 2; n <= iter; n++ {
+			prf.Reset()
+			prf.Write(u)
+			u = prf.Sum(u[:0])
+			for i := range t {
+				t[i] ^= u[i]
+			}
+		}
+		out = append(out, t...)
+	}
+	return out[:keyLen]
+}
+
+// verifyGoogleCredential checks a Google ID token with Google's tokeninfo endpoint:
+// the signature, expiry and issuer are verified by Google, and the audience must match
+// GOOGLE_CLIENT_ID when it is configured. A token is never trusted just by decoding it.
+func (s *Server) verifyGoogleCredential(credential string) (sub, email, name string, err error) {
+	if strings.Count(credential, ".") != 2 {
 		return "", "", "", errors.New("invalid jwt")
 	}
-	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	req, err := http.NewRequest(http.MethodGet, "https://oauth2.googleapis.com/tokeninfo?id_token="+credential, nil)
 	if err != nil {
 		return "", "", "", err
 	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", "", "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", "", "", fmt.Errorf("google rejected the token: %s", resp.Status)
+	}
 	var claims struct {
+		Aud   string `json:"aud"`
+		Iss   string `json:"iss"`
 		Sub   string `json:"sub"`
 		Email string `json:"email"`
 		Name  string `json:"name"`
-		Exp   int64  `json:"exp"`
 	}
-	if err := json.Unmarshal(raw, &claims); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&claims); err != nil {
 		return "", "", "", err
+	}
+	if claims.Iss != "accounts.google.com" && claims.Iss != "https://accounts.google.com" {
+		return "", "", "", errors.New("unexpected issuer")
+	}
+	if clientID := strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")); clientID != "" && claims.Aud != clientID {
+		return "", "", "", errors.New("token was issued for a different application")
 	}
 	if claims.Sub == "" {
 		return "", "", "", errors.New("missing sub")
-	}
-	if claims.Exp > 0 && time.Now().Unix() > claims.Exp {
-		return "", "", "", errors.New("expired token")
 	}
 	return claims.Sub, strings.ToLower(strings.TrimSpace(claims.Email)), strings.TrimSpace(claims.Name), nil
 }

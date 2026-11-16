@@ -6,9 +6,9 @@ describe('Smoke test', () => {
     localStorage.clear();
   });
 
-  it('shows landing screen without auth', () => {
+  it('shows the landing screen without signing in', () => {
     render(<CareerForge />);
-    expect(screen.getByText('Career Intelligence Platform')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Analyze a résumé/ })).toBeInTheDocument();
     expect(screen.getByText('Enter Workspace')).toBeInTheDocument();
   });
 });

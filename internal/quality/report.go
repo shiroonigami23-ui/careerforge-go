@@ -9,9 +9,27 @@ import (
 	"github.com/shiroonigami23-ui/careerforge-go/internal/store"
 )
 
+// Filler words that are never treated as job keywords (kept in sync with frontend/src/engine/quality.js).
 var stopWords = map[string]struct{}{
-	"with": {}, "from": {}, "that": {}, "this": {}, "have": {}, "your": {}, "must": {}, "should": {}, "will": {}, "role": {}, "team": {},
-	"years": {}, "experience": {}, "about": {}, "using": {}, "into": {}, "build": {}, "ability": {}, "required": {}, "strong": {},
+	"and": {}, "the": {}, "for": {}, "are": {}, "you": {}, "our": {}, "with": {}, "from": {}, "that": {},
+	"this": {}, "have": {}, "your": {}, "must": {}, "should": {}, "will": {}, "role": {}, "team": {},
+	"years": {}, "experience": {}, "about": {}, "using": {}, "into": {}, "build": {}, "ability": {},
+	"required": {}, "strong": {}, "need": {}, "needs": {}, "plus": {}, "all": {}, "any": {}, "can": {},
+	"has": {}, "who": {}, "what": {}, "when": {}, "where": {}, "which": {}, "how": {}, "its": {}, "not": {},
+	"but": {}, "also": {}, "etc": {}, "per": {}, "out": {}, "use": {}, "via": {}, "own": {}, "may": {},
+	"such": {}, "more": {}, "other": {}, "their": {}, "they": {}, "them": {}, "these": {}, "those": {},
+	"than": {}, "then": {}, "over": {}, "well": {}, "work": {}, "working": {}, "able": {}, "good": {},
+	"great": {}, "nice": {}, "new": {}, "including": {}, "include": {}, "includes": {}, "within": {},
+	"across": {}, "both": {}, "each": {}, "few": {}, "most": {}, "some": {}, "very": {}, "just": {}, "like": {},
+	"one": {}, "two": {}, "three": {}, "year": {}, "day": {}, "days": {}, "was": {}, "were": {}, "been": {},
+	"being": {}, "had": {}, "having": {}, "did": {}, "does": {}, "doing": {}, "get": {}, "gets": {}, "got": {},
+	"make": {}, "makes": {}, "made": {}, "want": {}, "wants": {}, "looking": {}, "seeking": {}, "ideal": {},
+	"candidate": {}, "candidates": {}, "job": {}, "position": {}, "responsibilities": {}, "requirements": {},
+	"preferred": {}, "bonus": {}, "knowledge": {}, "skills": {}, "understanding": {}, "familiarity": {},
+	"proven": {}, "excellent": {}, "solid": {}, "hands": {}, "while": {}, "would": {}, "could": {}, "there": {},
+	"here": {}, "only": {}, "same": {}, "too": {}, "why": {}, "him": {}, "her": {}, "his": {}, "she": {},
+	"hers": {}, "yours": {}, "ours": {}, "whom": {}, "whose": {}, "ever": {}, "every": {}, "many": {},
+	"much": {}, "less": {}, "least": {}, "based": {}, "related": {}, "relevant": {},
 }
 
 var wordTok = regexp.MustCompile(`[a-zA-Z][a-zA-Z\+\#\-]{2,}`)
@@ -61,15 +79,16 @@ func extractKeywords(text string) []string {
 
 // Report is the JSON shape returned by /analysis/quality.
 type Report struct {
-	QualityScore              int                      `json:"quality_score"`
-	KeywordCoverage           int                      `json:"keyword_coverage"`
-	SectionScore              int                      `json:"section_score"`
-	ActionVerbCount             int                      `json:"action_verb_count"`
-	QuantifiedAchievementCount int                     `json:"quantified_achievement_count"`
-	ContactChecks             map[string]bool          `json:"contact_checks"`
-	SectionsDetected          []string                 `json:"sections_detected"`
-	MissingKeywords           []string                 `json:"missing_keywords"`
-	Recommendations           []string                 `json:"recommendations"`
+	QualityScore               int             `json:"quality_score"`
+	KeywordCoverage            int             `json:"keyword_coverage"`
+	SectionScore               int             `json:"section_score"`
+	ActionVerbCount            int             `json:"action_verb_count"`
+	QuantifiedAchievementCount int             `json:"quantified_achievement_count"`
+	ContactChecks              map[string]bool `json:"contact_checks"`
+	SectionsDetected           []string        `json:"sections_detected"`
+	MatchedKeywords            []string        `json:"matched_keywords"`
+	MissingKeywords            []string        `json:"missing_keywords"`
+	Recommendations            []string        `json:"recommendations"`
 }
 
 func Build(sessionID string, vs *store.VectorStore) *Report {
@@ -150,7 +169,14 @@ func Build(sessionID string, vs *store.VectorStore) *Report {
 		qualityScore = 100
 	}
 
-	var missing []string
+	matched := []string{}
+	for _, k := range jdKeywords {
+		if _, ok := resumeSet[k]; ok && len(matched) < 12 {
+			matched = append(matched, k)
+		}
+	}
+
+	missing := []string{}
 	for i, k := range jdKeywords {
 		if i >= 18 {
 			break
@@ -192,9 +218,10 @@ func Build(sessionID string, vs *store.VectorStore) *Report {
 		ContactChecks: map[string]bool{
 			"email": hasEmail, "phone": hasPhone, "linkedin": hasLI,
 		},
-		SectionsDetected:  sections,
-		MissingKeywords:   missing,
-		Recommendations: recs,
+		SectionsDetected: sections,
+		MatchedKeywords:  matched,
+		MissingKeywords:  missing,
+		Recommendations:  recs,
 	}
 }
 
