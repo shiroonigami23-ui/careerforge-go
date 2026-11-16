@@ -86,7 +86,12 @@
           "linkedin": true
         },
         "missing_keywords": [],
-        "recommendation_count": 2
+        "recommendation_count": 2,
+        "matched_keywords": [
+          "docker",
+          "kubernetes",
+          "python"
+        ]
       }
     },
     {
@@ -115,7 +120,8 @@
           "docker",
           "python"
         ],
-        "recommendation_count": 6
+        "recommendation_count": 6,
+        "matched_keywords": []
       }
     },
     {
@@ -161,7 +167,10 @@
           "linkedin": true
         },
         "missing_keywords": [],
-        "recommendation_count": 0
+        "recommendation_count": 0,
+        "matched_keywords": [
+          "rust"
+        ]
       }
     },
     {
@@ -198,7 +207,40 @@
           "postgres",
           "redis"
         ],
-        "recommendation_count": 6
+        "recommendation_count": 6,
+        "matched_keywords": [
+          "node",
+          "react"
+        ]
+      }
+    },
+    {
+      "name": "filler words in the job description are ignored",
+      "resume": [
+        [
+          "skills",
+          "Python and Go"
+        ]
+      ],
+      "jd": [
+        "We need Python and you will work with our team"
+      ],
+      "expect": {
+        "quality_score": 49,
+        "keyword_coverage": 100,
+        "section_score": 16,
+        "action_verb_count": 0,
+        "quantified_achievement_count": 0,
+        "contact_checks": {
+          "email": false,
+          "phone": false,
+          "linkedin": false
+        },
+        "matched_keywords": [
+          "python"
+        ],
+        "missing_keywords": [],
+        "recommendation_count": 5
       }
     }
   ]

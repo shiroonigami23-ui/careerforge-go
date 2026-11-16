@@ -1,0 +1,1 @@
+import{a as r}from"./index-B1u36i_f.js";import{r as e}from"./jszip.min-BWiwYhqS.js";var o=e();const t=r(o),s=Object.freeze(Object.defineProperty({__proto__:null,default:t},Symbol.toStringTag,{value:"Module"}));export{s as j};

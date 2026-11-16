@@ -368,9 +368,14 @@ WHERE u.user_id = ?`, userID)
 	var uid, email, display, headline, bio, img sql.NullString
 	var sc, fc int
 	if err := row.Scan(&uid, &email, &display, &headline, &bio, &img, &sc, &fc); err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		writeJSON(w, map[string]any{"error": "Profile not found"})
-		return
+		// Guests (no account) still get a dashboard once they have analysed something.
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE user_id = ?`, userID).Scan(&sc)
+		if sc == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			writeJSON(w, map[string]any{"error": "Profile not found"})
+			return
+		}
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM uploaded_files WHERE owner_user_id = ?`, userID).Scan(&fc)
 	}
 	rows, err := s.db.Query(`
 SELECT file_id, file_role, original_name, public_url, extension, size_bytes, created_at
@@ -379,7 +384,7 @@ INNER JOIN sessions s ON s.session_id = uf.session_id
 WHERE s.user_id = ?
 ORDER BY file_id DESC LIMIT 8`, userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -394,21 +399,31 @@ ORDER BY file_id DESC LIMIT 8`, userID)
 			"extension": ext, "size_bytes": sz, "created_at": created,
 		})
 	}
-	srows, _ := s.db.Query(`SELECT session_id FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 15`, userID)
-	var sids []string
+	srows, err := s.db.Query(`SELECT session_id, created_at FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 15`, userID)
+	if err != nil {
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
+	type sessionRow struct{ id, created string }
+	var sids []sessionRow
 	for srows.Next() {
-		var sid string
-		_ = srows.Scan(&sid)
-		sids = append(sids, sid)
+		var sr sessionRow
+		_ = srows.Scan(&sr.id, &sr.created)
+		sids = append(sids, sr)
 	}
 	_ = srows.Close()
 	analyzed := 0
 	var qvals []int
-	for _, sid := range sids {
-		if rep := quality.Build(sid, s.vs); rep != nil {
+	recent := []map[string]any{}
+	for _, sr := range sids {
+		entry := map[string]any{"session_id": sr.id, "created_at": sr.created, "quality_score": nil, "keyword_coverage": nil}
+		if rep := quality.Build(sr.id, s.vs); rep != nil {
 			analyzed++
 			qvals = append(qvals, rep.QualityScore)
+			entry["quality_score"] = rep.QualityScore
+			entry["keyword_coverage"] = rep.KeywordCoverage
 		}
+		recent = append(recent, entry)
 	}
 	avgQ := 0
 	if len(qvals) > 0 {
@@ -422,6 +437,7 @@ ORDER BY file_id DESC LIMIT 8`, userID)
 	writeJSON(w, map[string]any{
 		"app_name": appName, "profile_completion": pc, "sessions_count": sc, "files_count": fc,
 		"analyzed_sessions": analyzed, "average_quality_score": avgQ, "recent_uploads": uploads,
+		"recent_sessions": recent,
 	})
 }
 

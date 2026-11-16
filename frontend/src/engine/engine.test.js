@@ -45,6 +45,7 @@ describe('numeric parity with the Go engine (tests/fixtures/quality_cases.json)'
     expect(rep.action_verb_count).toBe(e.action_verb_count);
     expect(rep.quantified_achievement_count).toBe(e.quantified_achievement_count);
     expect(rep.contact_checks).toEqual(e.contact_checks);
+    expect(rep.matched_keywords).toEqual(e.matched_keywords);
     expect(rep.missing_keywords).toEqual(e.missing_keywords);
     expect(rep.recommendations).toHaveLength(e.recommendation_count);
   });

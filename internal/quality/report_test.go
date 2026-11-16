@@ -25,6 +25,7 @@ type fixture struct {
 			ActionVerbs    int             `json:"action_verb_count"`
 			Quantified     int             `json:"quantified_achievement_count"`
 			Contact        map[string]bool `json:"contact_checks"`
+			Matched        []string        `json:"matched_keywords"`
 			Missing        []string        `json:"missing_keywords"`
 			Recommendation int             `json:"recommendation_count"`
 		} `json:"expect"`
@@ -85,7 +86,10 @@ func TestQualityReportNumbers(t *testing.T) {
 			if !reflect.DeepEqual(got.ContactChecks, e.Contact) {
 				t.Errorf("contact_checks = %v, want %v", got.ContactChecks, e.Contact)
 			}
-			if len(got.MissingKeywords)+len(e.Missing) > 0 && !reflect.DeepEqual(got.MissingKeywords, e.Missing) {
+			if !reflect.DeepEqual(got.MatchedKeywords, e.Matched) {
+				t.Errorf("matched_keywords = %v, want %v", got.MatchedKeywords, e.Matched)
+			}
+			if !reflect.DeepEqual(got.MissingKeywords, e.Missing) {
 				t.Errorf("missing_keywords = %v, want %v", got.MissingKeywords, e.Missing)
 			}
 			if got.QualityScore < 0 || got.QualityScore > 100 {

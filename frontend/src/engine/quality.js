@@ -1,7 +1,7 @@
 // Port of internal/quality/report.go: resume-vs-JD quality report.
 
-const STOP_WORDS = new Set(['with', 'from', 'that', 'this', 'have', 'your', 'must', 'should', 'will', 'role', 'team',
-  'years', 'experience', 'about', 'using', 'into', 'build', 'ability', 'required', 'strong']);
+// Filler words that are never treated as job keywords (kept in sync with internal/quality/report.go).
+const STOP_WORDS = new Set(`and the for are you our with from that this have your must should will role team years experience about using into build ability required strong need needs plus all any can has who what when where which how its not but also etc per out use via own may such more other their they them these those than then over well work working able good great nice new including include includes within across both each few most some very just like one two three year day days was were been being had having did does doing get gets got make makes made want wants looking seeking ideal candidate candidates job position responsibilities requirements preferred bonus knowledge skills understanding familiarity proven excellent solid hands while would could there here only same too why him her his she hers yours ours whom whose ever every many much less least based related relevant`.split(' '));
 const ACTION_VERBS = new Set(['led', 'built', 'implemented', 'designed', 'optimized', 'improved', 'delivered', 'managed',
   'developed', 'automated', 'migrated', 'scaled', 'launched', 'reduced', 'increased']);
 
@@ -47,6 +47,7 @@ export function buildQualityReport(session) {
   const qualityScore = Math.min(100, Math.floor(coverage * 0.45 + sectionScore * 0.25
     + Math.min(actionCount, 25) * 1.2 + Math.min(quantified, 20) * 1.5));
 
+  const matched = jdKeywords.filter((k) => resumeSet.has(k)).slice(0, 12);
   const missing = jdKeywords.slice(0, 18).filter((k) => !resumeSet.has(k)).slice(0, 8);
 
   const recommendations = [];
@@ -65,6 +66,7 @@ export function buildQualityReport(session) {
     quantified_achievement_count: quantified,
     contact_checks: { email: hasEmail, phone: hasPhone, linkedin: hasLinkedIn },
     sections_detected: sections,
+    matched_keywords: matched,
     missing_keywords: missing,
     recommendations,
   };

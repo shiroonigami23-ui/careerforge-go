@@ -156,14 +156,19 @@ const routes = {
   async 'GET /dashboard/:id'(_, userId) {
     const users = await load(K.users);
     const profiles = await load(K.profiles);
-    const user = users[userId];
-    if (!user) return json({ error: 'Profile not found' }, 404); // same as the Go server
-    const profile = profiles[userId] || {};
     const sessions = Object.values(await load(K.sessions)).filter((s) => s.user_id === userId)
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    // Same as the Go server: 404 only when there is no account and nothing analysed yet.
+    if (!users[userId] && !sessions.length) return json({ error: 'Profile not found' }, 404);
+    const user = users[userId] || { user_id: userId };
+    const profile = profiles[userId] || {};
     const files = Object.values(await load(K.files)).filter((f) => f.owner_user_id === userId && f.session_id)
       .sort((a, b) => b.file_id - a.file_id);
-    const scores = sessions.slice(0, 15).map(buildQualityReport).filter(Boolean).map((r) => r.quality_score);
+    const recent = sessions.slice(0, 15).map((sess) => {
+      const rep = buildQualityReport(sess);
+      return { session_id: sess.session_id, created_at: sess.created_at, quality_score: rep ? rep.quality_score : null, keyword_coverage: rep ? rep.keyword_coverage : null };
+    });
+    const scores = recent.map((r) => r.quality_score).filter((v) => v !== null);
     return json({
       app_name: 'CareerForge',
       profile_completion: profileCompletion(user.display_name, user.email, profile.headline, profile.bio, profile.image_file_id),
@@ -172,6 +177,7 @@ const routes = {
       analyzed_sessions: scores.length,
       average_quality_score: scores.length ? Math.floor(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
       recent_uploads: await Promise.all(files.slice(0, 8).map(publicFile)),
+      recent_sessions: recent,
     });
   },
 
