@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -19,7 +18,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 	"sync"
 
 	"github.com/shiroonigami23-ui/careerforge-go/internal/db"
@@ -197,7 +195,7 @@ func (s *Server) handleAuthGoogle(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"error": "credential is required"})
 		return
 	}
-	sub, email, name, err := parseGoogleCredential(cred)
+	sub, email, name, err := s.verifyGoogleCredential(cred)
 	if err != nil {
 		writeJSON(w, map[string]any{"error": "invalid google credential"})
 		return
@@ -309,19 +307,22 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
+	// Only uploaded files are public. Everything else under RootDir (including the
+	// SQLite database in data/) must never be served.
 	rel := strings.TrimPrefix(r.URL.Path, "/files/")
-	rel = filepath.ToSlash(filepath.Clean(rel))
-	if strings.Contains(rel, "..") {
+	rel = filepath.ToSlash(filepath.Clean("/" + rel))[1:]
+	if rel == "" || strings.Contains(rel, "..") || !strings.HasPrefix(rel, "uploaded_files/") {
 		http.NotFound(w, r)
 		return
 	}
-	full := filepath.Join(s.cfg.RootDir, rel)
-	base := filepath.Clean(s.cfg.RootDir)
-	if !strings.HasPrefix(filepath.Clean(full), base) {
+	uploads := filepath.Clean(filepath.Join(s.cfg.RootDir, "uploaded_files"))
+	full := filepath.Clean(filepath.Join(s.cfg.RootDir, filepath.FromSlash(rel)))
+	if !strings.HasPrefix(full, uploads+string(os.PathSeparator)) {
 		http.NotFound(w, r)
 		return
 	}
-	if _, err := os.Stat(full); err != nil {
+	info, err := os.Stat(full)
+	if err != nil || info.IsDir() {
 		http.NotFound(w, r)
 		return
 	}
@@ -903,29 +904,43 @@ func verifyPassword(stored, password string) bool {
 	return subtle.ConstantTimeCompare(want, got[:]) == 1
 }
 
-func parseGoogleCredential(credential string) (sub, email, name string, err error) {
-	parts := strings.Split(credential, ".")
-	if len(parts) < 2 {
+// verifyGoogleCredential checks a Google ID token with Google's tokeninfo endpoint:
+// the signature, expiry and issuer are verified by Google, and the audience must match
+// GOOGLE_CLIENT_ID when it is configured. A token is never trusted just by decoding it.
+func (s *Server) verifyGoogleCredential(credential string) (sub, email, name string, err error) {
+	if strings.Count(credential, ".") != 2 {
 		return "", "", "", errors.New("invalid jwt")
 	}
-	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	req, err := http.NewRequest(http.MethodGet, "https://oauth2.googleapis.com/tokeninfo?id_token="+credential, nil)
 	if err != nil {
 		return "", "", "", err
 	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", "", "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", "", "", fmt.Errorf("google rejected the token: %s", resp.Status)
+	}
 	var claims struct {
+		Aud   string `json:"aud"`
+		Iss   string `json:"iss"`
 		Sub   string `json:"sub"`
 		Email string `json:"email"`
 		Name  string `json:"name"`
-		Exp   int64  `json:"exp"`
 	}
-	if err := json.Unmarshal(raw, &claims); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&claims); err != nil {
 		return "", "", "", err
+	}
+	if claims.Iss != "accounts.google.com" && claims.Iss != "https://accounts.google.com" {
+		return "", "", "", errors.New("unexpected issuer")
+	}
+	if clientID := strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")); clientID != "" && claims.Aud != clientID {
+		return "", "", "", errors.New("token was issued for a different application")
 	}
 	if claims.Sub == "" {
 		return "", "", "", errors.New("missing sub")
-	}
-	if claims.Exp > 0 && time.Now().Unix() > claims.Exp {
-		return "", "", "", errors.New("expired token")
 	}
 	return claims.Sub, strings.ToLower(strings.TrimSpace(claims.Email)), strings.TrimSpace(claims.Name), nil
 }

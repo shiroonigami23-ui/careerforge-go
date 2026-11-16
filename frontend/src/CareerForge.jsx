@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
+import { apiFetch, assetUrl, getEngineMode } from './engine/api.js';
+import { getAiSettings, saveAiSettings, DEFAULT_GEMINI_MODEL } from './engine/llm.js';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const APP_DISPLAY_NAME = 'CareerForge';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const DOC_EXTENSIONS = ['pdf', 'docx', 'txt', 'md', 'epub'];
@@ -181,6 +182,9 @@ const CareerForge = () => {
   const [emailTest, setEmailTest] = useState({ to: '', subject: 'CareerForge Update', message: 'Your profile and notifications are active.' });
   const [emailStatus, setEmailStatus] = useState('');
   const [runtimeMode, setRuntimeMode] = useState('api');
+  const [engineMode, setEngineMode] = useState('');
+  const [aiSettings, setAiSettings] = useState(() => getAiSettings());
+  const [aiSaved, setAiSaved] = useState('');
 
   const [localSdp, setLocalSdp] = useState('');
   const [remoteSdp, setRemoteSdp] = useState('');
@@ -194,6 +198,17 @@ const CareerForge = () => {
   const mountedRef = useRef(true);
   const googleButtonRef = useRef(null);
   const commandInputRef = useRef(null);
+
+  useEffect(() => {
+    getEngineMode().then((mode) => { if (mountedRef.current) setEngineMode(mode); });
+  }, []);
+
+  const saveAi = () => {
+    saveAiSettings(aiSettings);
+    setAiSettings(getAiSettings());
+    setAiSaved('Saved on this device.');
+    setTimeout(() => setAiSaved(''), 2400);
+  };
 
   const missingKeywords = useMemo(() => inferMissingKeywords(jobDescription?.content || jdText, messages), [jobDescription?.content, jdText, messages]);
   const score = useMemo(() => computeScore(messages), [messages]);
@@ -306,7 +321,7 @@ const CareerForge = () => {
       formData.append('password', authForm.password);
       if (authMode === 'signup') formData.append('display_name', authForm.display_name.trim());
       const endpoint = authMode === 'signup' ? '/auth/signup' : '/auth/login';
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: formData });
+      const response = await apiFetch(`${endpoint}`, { method: 'POST', body: formData });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Authentication failed');
       persistAuth(data);
@@ -323,7 +338,7 @@ const CareerForge = () => {
     try {
       const formData = new FormData();
       formData.append('credential', credential);
-      const response = await fetch(`${API_BASE_URL}/auth/google`, { method: 'POST', body: formData });
+      const response = await apiFetch(`/auth/google`, { method: 'POST', body: formData });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Google sign-in failed');
       persistAuth(data);
@@ -336,7 +351,7 @@ const CareerForge = () => {
 
   const fetchProfile = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/profile/${userId}`);
+      const response = await apiFetch(`/profile/${userId}`);
       if (!response.ok) {
         if (!mountedRef.current) return;
         setProfile(createDefaultProfile(userId, ''));
@@ -364,7 +379,7 @@ const CareerForge = () => {
 
   const fetchDashboard = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/dashboard/${userId}`);
+      const response = await apiFetch(`/dashboard/${userId}`);
       if (!response.ok) {
         setDashboardData(null);
         return;
@@ -398,7 +413,7 @@ const CareerForge = () => {
     try {
       const formData = new FormData();
       formData.append('session_id', sid);
-      const response = await fetch(`${API_BASE_URL}/analysis/quality`, { method: 'POST', body: formData });
+      const response = await apiFetch(`/analysis/quality`, { method: 'POST', body: formData });
       if (!response.ok) {
         setQualityReport(null);
         return;
@@ -451,7 +466,7 @@ const CareerForge = () => {
       formData.append('to_email', emailTest.to);
       formData.append('subject', emailTest.subject);
       formData.append('message', emailTest.message);
-      const response = await fetch(`${API_BASE_URL}/notifications/test-email`, { method: 'POST', body: formData });
+      const response = await apiFetch(`/notifications/test-email`, { method: 'POST', body: formData });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || data.error || 'Email request failed.');
       setRuntimeMode('api');
@@ -472,7 +487,7 @@ const CareerForge = () => {
     setIsVisitingProfile(true);
     setErrorText('');
     try {
-      const response = await fetch(`${API_BASE_URL}/profile/${targetUserId}`);
+      const response = await apiFetch(`/profile/${targetUserId}`);
       if (!response.ok) throw new Error('Profile not found for this user ID.');
       const data = await response.json();
       if (data?.error || !data?.profile) throw new Error('Profile not found for this user ID.');
@@ -518,7 +533,7 @@ const CareerForge = () => {
     const timer = setInterval(() => setUploadProgress((prev) => (prev > 92 ? prev : prev + 7)), 260);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/upload`, { method: 'POST', body: formData });
+      const response = await apiFetch(`/upload`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(await response.text());
       const result = await response.json();
       setRuntimeMode('api');
@@ -622,7 +637,7 @@ const CareerForge = () => {
     formData.append('prompt', responseMode === 'detailed' ? `${promptText} explain in detail` : promptText);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/query`, { method: 'POST', body: formData });
+      const response = await apiFetch(`/query`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(await response.text());
       const text = await response.text();
       setRuntimeMode('api');
@@ -672,7 +687,7 @@ const CareerForge = () => {
       formData.append('bio', profile.bio || '');
       if (profileFile) formData.append('profile_image', profileFile);
 
-      const response = await fetch(`${API_BASE_URL}/profile/upsert`, { method: 'POST', body: formData });
+      const response = await apiFetch(`/profile/upsert`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(await response.text());
       const updated = await response.json();
       setRuntimeMode('api');
@@ -819,7 +834,7 @@ const CareerForge = () => {
       <div className="panel-head spaced-top"><h3>Recent Uploads</h3></div>
       <div className="files-list">
         {(dashboardData?.recent_uploads || []).length === 0 ? <p>No uploads yet.</p> : (dashboardData?.recent_uploads || []).map((file) => (
-          <a key={file.file_id} href={`${API_BASE_URL}${file.public_url}`} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name}</a>
+          <a key={file.file_id} href={assetUrl(file.public_url)} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name}</a>
         ))}
       </div>
       <div className="panel-head spaced-top"><h3>Missing Keyword Radar</h3></div>
@@ -891,10 +906,11 @@ const CareerForge = () => {
   const renderProfile = () => (
     <section className="content-panel panel-animate">
       <div className="panel-head"><h2>Profile</h2></div>
-      <div className="profile-grid"><div className="profile-card"><p className="upload-note"><strong>Your User ID:</strong> {userId}</p>{profile?.profile_image_url ? <img src={`${API_BASE_URL}${profile.profile_image_url}`} alt="Profile" className="avatar" /> : <div className="avatar placeholder">No Image</div>}<input type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.bmp" onChange={(event) => setProfileFile(event.target.files?.[0] || null)} /><small>Uploading a new profile image removes the previous one from server storage.</small></div>
+      <div className="profile-grid"><div className="profile-card"><p className="upload-note"><strong>Your User ID:</strong> {userId}</p>{profile?.profile_image_url ? <img src={assetUrl(profile.profile_image_url)} alt="Profile" className="avatar" /> : <div className="avatar placeholder">No Image</div>}<input type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.bmp" onChange={(event) => setProfileFile(event.target.files?.[0] || null)} /><small>Uploading a new profile image removes the previous one from server storage.</small></div>
         <div className="profile-card"><label>Name</label><input value={profile?.display_name || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), display_name: event.target.value }))} /><label>Email</label><input value={profile?.email || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), email: event.target.value }))} /><label>Headline</label><input value={profile?.headline || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), headline: event.target.value }))} /><label>Bio</label><textarea value={profile?.bio || ''} onChange={(event) => setProfile((prev) => ({ ...(prev || createDefaultProfile(userId, authUser?.email || '')), bio: event.target.value }))} /><button className="solid-btn" onClick={saveProfile} disabled={profileSaving}>{profileSaving ? 'Saving...' : 'Save Profile'}</button></div></div>
-      <details open className="collapse-card"><summary>Uploaded File Links</summary><div className="files-list">{profileFiles.length === 0 ? <p>No file metadata available yet.</p> : profileFiles.map((file) => <a key={file.file_id} href={`${API_BASE_URL}${file.public_url}`} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name} ({(file.size_bytes / 1024 / 1024).toFixed(2)} MB)</a>)}</div></details>
-      <details className="collapse-card"><summary>Visit Another User Profile</summary><div className="visit-grid"><input value={visitUserId} onChange={(event) => setVisitUserId(event.target.value)} placeholder="Enter target user_id" /><button className="solid-btn" onClick={visitProfile} disabled={isVisitingProfile}>{isVisitingProfile ? 'Loading...' : 'Visit Profile'}</button></div>{visitedProfile ? <div className="visited-profile"><p><strong>Name:</strong> {visitedProfile.display_name || 'User'}</p><p><strong>Headline:</strong> {visitedProfile.headline || 'N/A'}</p><p><strong>Bio:</strong> {visitedProfile.bio || 'N/A'}</p>{visitedProfile.profile_image_url ? <img src={`${API_BASE_URL}${visitedProfile.profile_image_url}`} alt="Visited profile" className="avatar" /> : null}<div className="files-list">{visitedFiles.length === 0 ? <p>No shared files found.</p> : visitedFiles.map((file) => <a key={file.file_id} href={`${API_BASE_URL}${file.public_url}`} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name}</a>)}</div></div> : null}</details>
+      <details open className="collapse-card"><summary>AI settings</summary><p className="upload-note">{engineMode === 'device' ? 'CareerForge is running on this device: your files and results stay here. Add a free Gemini API key for AI answers and image reading; without one, you still get the full quality report and built-in coaching answers.' : 'Connected to the CareerForge server. The key below is only used when the app runs on this device.'}</p><label>Gemini API key</label><input type="password" value={aiSettings.apiKey} onChange={(event) => setAiSettings((prev) => ({ ...prev, apiKey: event.target.value }))} placeholder="AIza…" autoComplete="off" /><label>Model</label><input value={aiSettings.model} onChange={(event) => setAiSettings((prev) => ({ ...prev, model: event.target.value }))} placeholder={DEFAULT_GEMINI_MODEL} /><div className="visit-grid"><button className="solid-btn" onClick={saveAi}>Save AI settings</button><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Get a free key</a></div>{aiSaved ? <small>{aiSaved}</small> : null}</details>
+      <details open className="collapse-card"><summary>Uploaded File Links</summary><div className="files-list">{profileFiles.length === 0 ? <p>No file metadata available yet.</p> : profileFiles.map((file) => <a key={file.file_id} href={assetUrl(file.public_url)} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name} ({(file.size_bytes / 1024 / 1024).toFixed(2)} MB)</a>)}</div></details>
+      <details className="collapse-card"><summary>Visit Another User Profile</summary><div className="visit-grid"><input value={visitUserId} onChange={(event) => setVisitUserId(event.target.value)} placeholder="Enter target user_id" /><button className="solid-btn" onClick={visitProfile} disabled={isVisitingProfile}>{isVisitingProfile ? 'Loading...' : 'Visit Profile'}</button></div>{visitedProfile ? <div className="visited-profile"><p><strong>Name:</strong> {visitedProfile.display_name || 'User'}</p><p><strong>Headline:</strong> {visitedProfile.headline || 'N/A'}</p><p><strong>Bio:</strong> {visitedProfile.bio || 'N/A'}</p>{visitedProfile.profile_image_url ? <img src={assetUrl(visitedProfile.profile_image_url)} alt="Visited profile" className="avatar" /> : null}<div className="files-list">{visitedFiles.length === 0 ? <p>No shared files found.</p> : visitedFiles.map((file) => <a key={file.file_id} href={assetUrl(file.public_url)} target="_blank" rel="noreferrer">{file.file_role}: {file.original_name}</a>)}</div></div> : null}</details>
       <details className="collapse-card"><summary>Email Notifications</summary><div className="visit-grid"><input value={emailTest.to} onChange={(event) => setEmailTest((prev) => ({ ...prev, to: event.target.value }))} placeholder="recipient@email.com" /><button className="solid-btn" onClick={sendEmailNotification}>Send Email</button></div><input value={emailTest.subject} onChange={(event) => setEmailTest((prev) => ({ ...prev, subject: event.target.value }))} placeholder="Email subject" /><textarea value={emailTest.message} onChange={(event) => setEmailTest((prev) => ({ ...prev, message: event.target.value }))} placeholder="Email body" />{emailStatus ? <p className="upload-note">{emailStatus}</p> : null}</details>
     </section>
   );
@@ -904,7 +920,8 @@ const CareerForge = () => {
       <details open className="collapse-card"><summary>Supported Files & Limits</summary><p>Docs: up to 10MB each (`pdf`, `docx`, `txt`, `md`, `epub`).</p><p>Images: up to 5MB each (`jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`).</p></details>
       <details className="collapse-card"><summary>Navigation Guide</summary><p>Desktop uses left sidebar tabs.</p><p>Phone uses bottom tabs for one-thumb switching.</p></details>
       <details className="collapse-card"><summary>Resume Lab</summary><p>Upload resume and job description, then ask targeted questions to refine your fit.</p><p>Switch response mode when you want deeper strategy.</p></details>
-      <details className="collapse-card"><summary>Profile</summary><p>No login required. Use the landing page to enter workspace directly.</p><p>Profile image replacement deletes the previous image from server storage.</p></details>
+      <details className="collapse-card"><summary>Profile</summary><p>No login required. Use the landing page to enter workspace directly.</p><p>Profile image replacement deletes the previous image from storage.</p></details>
+      <details className="collapse-card"><summary>Where your data is stored</summary><p>{engineMode === 'device' ? 'On this device. Accounts, files and analyses are kept in the app storage and never uploaded, except text you send to Gemini when an API key is set.' : 'On the CareerForge server you are connected to.'}</p></details>
     </section>
   );
 
@@ -947,7 +964,7 @@ const CareerForge = () => {
           <button className="ghost-btn" onClick={() => setShowAuth(true)}>Back To Landing</button>
         </div>
       </header>
-      <main className="main-content">{runtimeMode === 'local' ? <p className="status warn">Local mode active: backend is unreachable, so data is saved on-device.</p> : null}{uploadMessage ? <p className="status ok">{uploadMessage}</p> : null}{errorText ? <p className="status warn">{errorText}</p> : null}{activeTab === 'dashboard' ? renderDashboard() : null}{activeTab === 'analyzer' ? renderAnalyzer() : null}{activeTab === 'chats' ? renderP2P() : null}{activeTab === 'profile' ? renderProfile() : null}{activeTab === 'help' ? renderHelp() : null}</main>
+      <main className="main-content">{runtimeMode === 'local' && engineMode !== 'device' ? <p className="status warn">Local mode active: backend is unreachable, so data is saved on-device.</p> : null}{uploadMessage ? <p className="status ok">{uploadMessage}</p> : null}{errorText ? <p className="status warn">{errorText}</p> : null}{activeTab === 'dashboard' ? renderDashboard() : null}{activeTab === 'analyzer' ? renderAnalyzer() : null}{activeTab === 'chats' ? renderP2P() : null}{activeTab === 'profile' ? renderProfile() : null}{activeTab === 'help' ? renderHelp() : null}</main>
       <nav className="bottom-nav">{TABS.map((tab) => <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</nav>
 
       {showCommandPalette ? (
