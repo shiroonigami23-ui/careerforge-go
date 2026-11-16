@@ -230,7 +230,10 @@ const CareerForge = () => {
     if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
   }, [messages]);
 
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true; // StrictMode mounts twice: reset after the simulated unmount
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     fetchProfile();

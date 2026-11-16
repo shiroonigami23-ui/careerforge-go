@@ -113,7 +113,11 @@ export function createChunks(sections) {
     const text = rawText.trim();
     if (!text) continue;
     if (mapped === 'contact') push(text, mapped);
-    else if (mapped === 'skills') (text.match(SKILLS_PAT) || []).forEach((m) => push(m.trim(), mapped));
+    else if (mapped === 'skills') {
+      // "Languages: Go, Python" lines become one chunk each; a plain list is kept whole. Short skill lines still count.
+      const lines = text.match(SKILLS_PAT) || [text];
+      lines.map((m) => m.trim()).filter(Boolean).forEach((m) => chunks.push({ chunk_text: m, section: mapped, resume_owner: owner }));
+    }
     else if (mapped === 'education' || mapped === 'certifications' || mapped.includes('summary')) push(`${toTitleWords(rawSection)}: ${text}`, mapped);
     else if (['experience', 'projects', 'leadership'].includes(mapped)) text.split(/\s*-\s+/).forEach((part) => push(part.trim(), mapped));
     else push(text, mapped);

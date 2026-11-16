@@ -49,23 +49,33 @@ async function storeFile(file, { sessionId = '', ownerId = '', role }) {
   return files[fileId];
 }
 
-// ---- password hashing: same v1 scheme as the Go server (salted SHA-256) ----
-async function sha256Hex(bytes) {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+// ---- password hashing: same scheme as the Go server ----
+// v2$<iterations>$<salt hex>$<PBKDF2-HMAC-SHA256 hex>; legacy v1$<salt>$<sha256> still verifies.
+export const PBKDF2_ITERATIONS = 210000;
+const toHex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+const hexToBytes = (hex) => new Uint8Array((hex.match(/.{2}/g) || []).map((h) => parseInt(h, 16)));
+async function pbkdf2Hex(password, saltBytes, iterations, bytes = 32) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  return toHex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations }, key, bytes * 8));
 }
-const hexToBytes = (hex) => new Uint8Array(hex.match(/.{2}/g).map((h) => parseInt(h, 16)));
-async function hashPassword(password) {
+export async function hashPassword(password) {
   const salt = randomHex(16);
-  const bytes = new Uint8Array([...hexToBytes(salt), ...new TextEncoder().encode(password)]);
-  return `v1$${salt}$${await sha256Hex(bytes)}`;
+  return `v2$${PBKDF2_ITERATIONS}$${salt}$${await pbkdf2Hex(password, hexToBytes(salt), PBKDF2_ITERATIONS)}`;
 }
-async function verifyPassword(stored, password) {
-  const [v, salt, want] = String(stored || '').split('$');
-  if (v !== 'v1' || !salt || !want) return false;
-  const bytes = new Uint8Array([...hexToBytes(salt), ...new TextEncoder().encode(password)]);
-  return (await sha256Hex(bytes)) === want;
+export async function verifyPassword(stored, password) {
+  const parts = String(stored || '').split('$');
+  if (parts[0] === 'v2' && parts.length === 4) {
+    const iter = Number(parts[1]);
+    if (!Number.isInteger(iter) || iter < 1 || iter > 10000000 || !parts[3]) return false;
+    return (await pbkdf2Hex(password, hexToBytes(parts[2]), iter, parts[3].length / 2)) === parts[3];
+  }
+  if (parts[0] === 'v1' && parts.length === 3 && parts[1] && parts[2]) {
+    const bytes = new Uint8Array([...hexToBytes(parts[1]), ...new TextEncoder().encode(password)]);
+    return toHex(await crypto.subtle.digest('SHA-256', bytes)) === parts[2];
+  }
+  return false;
 }
+const needsRehash = (stored) => !String(stored || '').startsWith(`v2$${PBKDF2_ITERATIONS}$`);
 
 function validate(file, image) {
   const e = extOf(file.name);
@@ -105,6 +115,11 @@ const routes = {
     if (!email || !password) return json({ error: 'email and password are required' });
     const user = Object.values(await load(K.users)).find((u) => u.email === email);
     if (!user || !(await verifyPassword(user.password_hash, password))) return json({ error: 'invalid email or password' });
+    if (needsRehash(user.password_hash)) {
+      const users = await load(K.users);
+      users[user.user_id] = { ...users[user.user_id], password_hash: await hashPassword(password) };
+      await set(K.users, users);
+    }
     return json({ user_id: user.user_id, email, display_name: user.display_name, auth_provider: user.auth_provider });
   },
 
@@ -141,7 +156,8 @@ const routes = {
   async 'GET /dashboard/:id'(_, userId) {
     const users = await load(K.users);
     const profiles = await load(K.profiles);
-    const user = users[userId] || { user_id: userId };
+    const user = users[userId];
+    if (!user) return json({ error: 'Profile not found' }, 404); // same as the Go server
     const profile = profiles[userId] || {};
     const sessions = Object.values(await load(K.sessions)).filter((s) => s.user_id === userId)
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));

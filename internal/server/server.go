@@ -1,10 +1,12 @@
 package server
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -176,6 +179,11 @@ FROM users WHERE email = ?`, email).Scan(&userID, &display, &hash, &provider)
 	if !hash.Valid || hash.String == "" || !verifyPassword(hash.String, password) {
 		writeJSON(w, map[string]any{"error": "invalid email or password"})
 		return
+	}
+	if needsRehash(hash.String) {
+		if upgraded, err := hashPassword(password); err == nil {
+			_, _ = s.db.Exec(`UPDATE users SET password_hash = ? WHERE user_id = ?`, upgraded, userID.String)
+		}
 	}
 	writeJSON(w, map[string]any{
 		"user_id":       userID.String,
@@ -875,33 +883,77 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
+// Passwords are stored as "v2$<iterations>$<salt hex>$<PBKDF2-HMAC-SHA256 hex>".
+// "v1$salt$sha256" hashes from older versions still verify and are upgraded on the next login.
+const pbkdf2Iterations = 210000
+
 func hashPassword(password string) (string, error) {
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(append(salt, []byte(password)...))
-	return "v1$" + hex.EncodeToString(salt) + "$" + hex.EncodeToString(sum[:]), nil
+	dk := pbkdf2SHA256([]byte(password), salt, pbkdf2Iterations, 32)
+	return fmt.Sprintf("v2$%d$%s$%s", pbkdf2Iterations, hex.EncodeToString(salt), hex.EncodeToString(dk)), nil
 }
 
 func verifyPassword(stored, password string) bool {
 	parts := strings.Split(stored, "$")
-	if len(parts) != 3 || parts[0] != "v1" {
-		return false
+	switch {
+	case len(parts) == 4 && parts[0] == "v2":
+		iter, err := strconv.Atoi(parts[1])
+		if err != nil || iter < 1 || iter > 10_000_000 {
+			return false
+		}
+		salt, err1 := hex.DecodeString(parts[2])
+		want, err2 := hex.DecodeString(parts[3])
+		if err1 != nil || err2 != nil || len(want) == 0 {
+			return false
+		}
+		return subtle.ConstantTimeCompare(want, pbkdf2SHA256([]byte(password), salt, iter, len(want))) == 1
+	case len(parts) == 3 && parts[0] == "v1":
+		salt, err1 := hex.DecodeString(parts[1])
+		want, err2 := hex.DecodeString(parts[2])
+		if err1 != nil || err2 != nil {
+			return false
+		}
+		got := sha256.Sum256(append(salt, []byte(password)...))
+		return subtle.ConstantTimeCompare(want, got[:]) == 1
 	}
-	salt, err := hex.DecodeString(parts[1])
-	if err != nil {
-		return false
+	return false
+}
+
+// needsRehash reports whether a stored hash should be upgraded to the current scheme.
+func needsRehash(stored string) bool {
+	return !strings.HasPrefix(stored, fmt.Sprintf("v2$%d$", pbkdf2Iterations))
+}
+
+// pbkdf2SHA256 implements PBKDF2 (RFC 8018) with HMAC-SHA256 using only the standard library.
+func pbkdf2SHA256(password, salt []byte, iter, keyLen int) []byte {
+	prf := hmac.New(sha256.New, password)
+	hLen := prf.Size()
+	blocks := (keyLen + hLen - 1) / hLen
+	out := make([]byte, 0, blocks*hLen)
+	buf := make([]byte, 4)
+	u := make([]byte, hLen)
+	t := make([]byte, hLen)
+	for block := 1; block <= blocks; block++ {
+		prf.Reset()
+		prf.Write(salt)
+		binary.BigEndian.PutUint32(buf, uint32(block))
+		prf.Write(buf)
+		u = prf.Sum(u[:0])
+		copy(t, u)
+		for n := 2; n <= iter; n++ {
+			prf.Reset()
+			prf.Write(u)
+			u = prf.Sum(u[:0])
+			for i := range t {
+				t[i] ^= u[i]
+			}
+		}
+		out = append(out, t...)
 	}
-	want, err := hex.DecodeString(parts[2])
-	if err != nil {
-		return false
-	}
-	got := sha256.Sum256(append(salt, []byte(password)...))
-	if len(want) != len(got) {
-		return false
-	}
-	return subtle.ConstantTimeCompare(want, got[:]) == 1
+	return out[:keyLen]
 }
 
 // verifyGoogleCredential checks a Google ID token with Google's tokeninfo endpoint:

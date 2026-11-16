@@ -24,7 +24,7 @@ jobs:
           if [ -n "$unformatted" ]; then echo "Run gofmt -w on:"; echo "$unformatted"; exit 1; fi
       - name: go vet
         run: go vet ./...
-      - name: go test
+      - name: go test (race detector)
         run: go test -race ./...
       - name: go build (linux, windows, macOS)
         run: |
@@ -43,15 +43,30 @@ jobs:
           code=$(curl -s --path-as-is -o /dev/null -w "%{http_code}" "http://127.0.0.1:18080/files/uploaded_files/../data/careerforge.db")
           test "$code" != "200"
 
-  web:
-    name: Frontend (unit tests, build)
+  tests:
+    name: All test suites (Go + engine + browser E2E), recorded
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - working-directory: frontend
-        run: npm ci && npx vitest run && npm run build
+        run: npm ci && npx playwright install --with-deps chromium && npm run build
+      - name: Run and record
+        run: node tests/run-all.mjs
+      - name: Test report
+        if: always()
+        run: |
+          cat tests/results/LATEST.md >> "$GITHUB_STEP_SUMMARY"
+          cat tests/results/LATEST.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: tests/results/
