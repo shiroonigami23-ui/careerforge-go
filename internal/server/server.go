@@ -651,8 +651,8 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]any{
 		"message":    "Upload received. Processing started.",
-		"resume_url":   s.publicURL(rpath),
-		"jd_url":       s.publicURL(jpath),
+		"resume_url": s.publicURL(rpath),
+		"jd_url":     s.publicURL(jpath),
 	})
 }
 

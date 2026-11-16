@@ -61,15 +61,15 @@ func extractKeywords(text string) []string {
 
 // Report is the JSON shape returned by /analysis/quality.
 type Report struct {
-	QualityScore              int                      `json:"quality_score"`
-	KeywordCoverage           int                      `json:"keyword_coverage"`
-	SectionScore              int                      `json:"section_score"`
-	ActionVerbCount             int                      `json:"action_verb_count"`
-	QuantifiedAchievementCount int                     `json:"quantified_achievement_count"`
-	ContactChecks             map[string]bool          `json:"contact_checks"`
-	SectionsDetected          []string                 `json:"sections_detected"`
-	MissingKeywords           []string                 `json:"missing_keywords"`
-	Recommendations           []string                 `json:"recommendations"`
+	QualityScore               int             `json:"quality_score"`
+	KeywordCoverage            int             `json:"keyword_coverage"`
+	SectionScore               int             `json:"section_score"`
+	ActionVerbCount            int             `json:"action_verb_count"`
+	QuantifiedAchievementCount int             `json:"quantified_achievement_count"`
+	ContactChecks              map[string]bool `json:"contact_checks"`
+	SectionsDetected           []string        `json:"sections_detected"`
+	MissingKeywords            []string        `json:"missing_keywords"`
+	Recommendations            []string        `json:"recommendations"`
 }
 
 func Build(sessionID string, vs *store.VectorStore) *Report {
@@ -192,9 +192,9 @@ func Build(sessionID string, vs *store.VectorStore) *Report {
 		ContactChecks: map[string]bool{
 			"email": hasEmail, "phone": hasPhone, "linkedin": hasLI,
 		},
-		SectionsDetected:  sections,
-		MissingKeywords:   missing,
-		Recommendations: recs,
+		SectionsDetected: sections,
+		MissingKeywords:  missing,
+		Recommendations:  recs,
 	}
 }
 

@@ -2,7 +2,6 @@ package extract
 
 import (
 	"archive/zip"
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -14,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/ledongthuc/pdf"
+
+	"github.com/shiroonigami23-ui/careerforge-go/internal/llm"
 )
 
 // Kind identifies supported file categories.
@@ -183,13 +184,10 @@ func extractImageGemini(path, apiKey string, c *http.Client) (string, error) {
 		},
 	}
 	raw, _ := json.Marshal(body)
-	req, err := http.NewRequest(http.MethodPost,
-		"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+apiKey,
-		bytes.NewReader(raw))
+	req, err := llm.NewGeminiRequest(raw, apiKey)
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Content-Type", "application/json")
 	if c == nil {
 		c = http.DefaultClient
 	}

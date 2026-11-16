@@ -141,12 +141,12 @@ func toTitleWords(s string) string {
 }
 
 var sectionMap = map[string][]string{
-	"contact":      {"contact", "personal information"},
-	"skills":       {"skills", "technologies", "tools"},
-	"experience":   {"experience", "work experience", "professional experience"},
-	"projects":     {"projects", "case studies"},
-	"leadership":   {"leadership", "leadership experience", "positions", "roles", "extracurriculars"},
-	"education":    {"education", "academics", "qualifications"},
+	"contact":        {"contact", "personal information"},
+	"skills":         {"skills", "technologies", "tools"},
+	"experience":     {"experience", "work experience", "professional experience"},
+	"projects":       {"projects", "case studies"},
+	"leadership":     {"leadership", "leadership experience", "positions", "roles", "extracurriculars"},
+	"education":      {"education", "academics", "qualifications"},
 	"certifications": {"certifications", "courses", "licenses"},
 }
 

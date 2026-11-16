@@ -53,13 +53,10 @@ func callGemini(prompt string, c *http.Client) (string, error) {
 		},
 	}
 	raw, _ := json.Marshal(body)
-	req, err := http.NewRequest(http.MethodPost,
-		"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+key,
-		bytes.NewReader(raw))
+	req, err := NewGeminiRequest(raw, key)
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Content-Type", "application/json")
 	if c == nil {
 		c = http.DefaultClient
 	}
@@ -106,8 +103,8 @@ func callHF(prompt string, c *http.Client) (string, error) {
 	body := map[string]any{
 		"inputs": prompt,
 		"parameters": map[string]any{
-			"max_new_tokens": 350,
-			"temperature":    0.4,
+			"max_new_tokens":   350,
+			"temperature":      0.4,
 			"return_full_text": false,
 		},
 	}
