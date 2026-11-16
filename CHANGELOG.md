@@ -72,3 +72,16 @@ The first release for Android, iOS, Windows and the web from a single tag.
 
 - \`da6b863\` **Claude** (2026-11-14T00:31:12+05:30) — ci: fix failing workflows
 
+
+### 2026-11-16 19:17:48 UTC (push `60cc89e6137e3de951fa45d169c93dcf70314c2e`)
+
+- \`f9679c2\` **Claude** (2026-11-17T00:47:00+05:30) — tests: record CI run (68/68 passed, Go HTTP tests with SQLite)
+- \`76ad920\` **Claude** (2026-11-17T00:43:17+05:30) — Docs: new README with downloads, screenshots and walkthrough GIF; CHANGELOG 1.0.0; roadmap with PDF; recorded test run
+- \`542c58d\` **Claude** (2026-11-17T00:30:08+05:30) — Redesign CareerForge UI with Lucide icons; fit dial, keyword map, report export, analysis history, dark mode, sign-in
+- \`a373b43\` **Claude** (2026-11-17T00:18:52+05:30) — ci: run browser tests on ubuntu-24.04 (Playwright has no Chromium for 26.04)
+- \`dc3bcd4\` **Claude** (2026-11-17T00:16:05+05:30) — Tests: Go, engine and browser suites with recorded results; fix dropped skills section, StrictMode UI bug; PBKDF2 passwords
+- \`5b91552\` **Claude** (2026-11-16T23:58:05+05:30) — release: allow dry runs from release-test/* branches
+- \`0e5cb31\` **Claude** (2026-11-16T23:57:36+05:30) — Add iOS (Capacitor), CareerForge icons, animated boot splash, Electron desktop app, CI and release workflows
+- \`7656012\` **Claude** (2026-11-16T23:53:13+05:30) — Use GEMINI_MODEL (default gemini-flash-latest) and x-goog-api-key header; gofmt; device engine on Android
+- \`cff5d91\` **Claude** (2026-11-16T23:46:31+05:30) — WIP: on-device engine for APK/IPA, server security fixes
+
