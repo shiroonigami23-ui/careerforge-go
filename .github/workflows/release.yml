@@ -1,12 +1,13 @@
 # On a v* tag: build the Android APK, an unsigned iOS IPA and the Windows EXEs,
 # then publish them all on one GitHub Release.
-# Run it by hand (workflow_dispatch) to test the builds; that only uploads workflow artifacts.
+# Dry run: push to a release-test/* branch (or run it by hand); that only uploads workflow artifacts.
 
 name: Release (APK + IPA + EXE)
 
 on:
   push:
     tags: ["v*"]
+    branches: ["release-test/**"] # dry run: builds everything, publishes nothing
   workflow_dispatch:
 
 concurrency:
