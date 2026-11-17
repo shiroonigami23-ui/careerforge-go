@@ -1,0 +1,5 @@
+# Compiled frontend bundle embedded into the Go binary (go:embed) — build output, not source
+cmd/careerforge/web/dist/** linguist-generated=true
+desktop/build/** linguist-generated=true
+# Vendored minified libraries
+*.min.js linguist-vendored=true
