@@ -98,3 +98,8 @@ The first release for Android, iOS, Windows and the web from a single tag.
 - \`26472cd\` **Claude** (2026-11-17T01:19:47+05:30) — Server mode fixes found by browser tests against the real server
 - \`f046785\` **Claude** (2026-11-17T01:06:42+05:30) — Profile edits require the owner's token; release adds macOS, Linux and server builds with checksums; browser tests for accounts/profile/settings/direct chat, also against the Go server; 10-page roadmap and technical guide
 
+
+### 2026-11-17 12:51:44 UTC (push `3fc28c991d463b7a3ad19e4dedcab641a78c85ca`)
+
+- \`3fc28c9\` **Claude** (2026-11-17T18:21:33+05:30) — Mark the embedded web bundle as generated so GitHub language stats reflect source code
+
